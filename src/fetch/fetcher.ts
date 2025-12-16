@@ -30,7 +30,7 @@ export async function fetchHTML(url: string, incomingRequest: Request): Promise<
 
 	// Default User-Agent if not provided
 	if (!fetchHeaders.has('user-agent')) {
-		fetchHeaders.set('user-agent', 'Mozilla/5.0 (Cloudflare Worker) AppleWebKit/537.36')
+		fetchHeaders.set('user-agent', 'Mozilla/5.0 (Translation Proxy) AppleWebKit/537.36')
 	}
 
 	try {

@@ -1,9 +1,9 @@
 /**
- * Segment-level caching using Cloudflare KV
+ * Segment-level caching
  * Caches translation segments per page path to reduce translation API costs
  */
 
-import type { KVNamespace } from '@cloudflare/workers-types'
+import type { MemoryCache } from './memory-cache'
 import type { Content, SegmentCache, PathnameMapping } from './types'
 import { normalizePathname, denormalizePathname } from './translation/translate-pathnames'
 
@@ -33,13 +33,13 @@ function buildSegmentCacheKey(targetLang: string, originDomain: string): string 
  * @returns Segment cache hash map or null if not found
  */
 export async function getSegmentCache(
-	kv: KVNamespace,
+	cache: MemoryCache,
 	targetLang: string,
 	originDomain: string
 ): Promise<SegmentCache | null> {
 	try {
 		const key = buildSegmentCacheKey(targetLang, originDomain)
-		const cached = (await kv.get(key, 'json')) as SegmentCache | null
+		const cached = (await cache.get(key, 'json')) as SegmentCache | null
 
 		// console.log(`[GET CACHE]: ${key}`)
 
@@ -114,7 +114,7 @@ export async function matchSegmentsWithCache(segments: Content[], cache: Segment
  * @returns Number of total items in cache after update (0 if cache update failed)
  */
 export async function updateSegmentCache(
-	kv: KVNamespace,
+	cache: MemoryCache,
 	targetLang: string,
 	originDomain: string,
 	existingCache: SegmentCache | null,
@@ -150,9 +150,9 @@ export async function updateSegmentCache(
 			console.warn(`Segment cache large (${sizeMB}MB, ${entryCount} entries) for ${targetLang}::${originDomain}`)
 		}
 
-		// Write to KV with TTL
+		// Write to cache with TTL
 		const key = buildSegmentCacheKey(targetLang, originDomain)
-		await kv.put(key, serialized, {
+		await cache.put(key, serialized, {
 			expirationTtl: 60 * 60 * 24 * 30, // 30 days
 		})
 
@@ -182,13 +182,13 @@ function buildPathnameCacheKey(targetLang: string, originDomain: string): string
  * @returns PathnameMapping or null if not found
  */
 export async function getPathnameMapping(
-	kv: KVNamespace,
+	cache: MemoryCache,
 	targetLang: string,
 	originDomain: string
 ): Promise<PathnameMapping | null> {
 	try {
 		const key = buildPathnameCacheKey(targetLang, originDomain)
-		const cached = (await kv.get(key, 'json')) as PathnameMapping | null
+		const cached = (await cache.get(key, 'json')) as PathnameMapping | null
 
 		// console.log(`[GET CACHE]: ${key}`)
 
@@ -253,12 +253,12 @@ export function lookupOriginalPathnameSync(mapping: PathnameMapping, incomingPat
  * @returns Original English pathname or null if not found (indicates new path)
  */
 export async function lookupOriginalPathname(
-	kv: KVNamespace,
+	cache: MemoryCache,
 	targetLang: string,
 	originDomain: string,
 	incomingPathname: string
 ): Promise<string | null> {
-	const mapping = await getPathnameMapping(kv, targetLang, originDomain)
+	const mapping = await getPathnameMapping(cache, targetLang, originDomain)
 	if (!mapping) {
 		return null
 	}
@@ -281,7 +281,7 @@ export async function lookupOriginalPathname(
  * @param translatedPathname - Translated pathname (normalized)
  */
 export async function updatePathnameMapping(
-	kv: KVNamespace,
+	cache: MemoryCache,
 	targetLang: string,
 	originDomain: string,
 	originalPathname: string,
@@ -289,7 +289,7 @@ export async function updatePathnameMapping(
 ): Promise<void> {
 	try {
 		// Get existing mapping or create new empty structure
-		const existing = await getPathnameMapping(kv, targetLang, originDomain)
+		const existing = await getPathnameMapping(cache, targetLang, originDomain)
 		const updated: PathnameMapping = existing || { origin: {}, translated: {} }
 
 		// Forward mapping: original → translated
@@ -311,9 +311,9 @@ export async function updatePathnameMapping(
 			console.warn(`Pathname mapping large (${sizeMB}MB) for ${targetLang}::${originDomain}`)
 		}
 
-		// Write to KV
+		// Write to cache
 		const key = buildPathnameCacheKey(targetLang, originDomain)
-		await kv.put(key, serialized)
+		await cache.put(key, serialized)
 	} catch (error) {
 		console.error('KV pathname mapping write error:', error)
 		// Fail open - don't throw, just skip update
@@ -333,7 +333,7 @@ export async function updatePathnameMapping(
  * @param updates - Array of { original, translated } pathname pairs to add
  */
 export async function batchUpdatePathnameMapping(
-	kv: KVNamespace,
+	cache: MemoryCache,
 	targetLang: string,
 	originDomain: string,
 	updates: Array<{ original: string; translated: string }>
@@ -342,7 +342,7 @@ export async function batchUpdatePathnameMapping(
 
 	try {
 		// CRITICAL: Re-read cache immediately before write to minimize race window
-		const existing = await getPathnameMapping(kv, targetLang, originDomain)
+		const existing = await getPathnameMapping(cache, targetLang, originDomain)
 		const updated: PathnameMapping = existing || { origin: {}, translated: {} }
 
 		// Apply all updates in memory
@@ -366,9 +366,9 @@ export async function batchUpdatePathnameMapping(
 			console.warn(`Pathname mapping large (${sizeMB}MB) for ${targetLang}::${originDomain}`)
 		}
 
-		// Single KV write with TTL
+		// Single cache write with TTL
 		const key = buildPathnameCacheKey(targetLang, originDomain)
-		await kv.put(key, serialized, {
+		await cache.put(key, serialized, {
 			expirationTtl: 60 * 60 * 24 * 30, // 30 days
 		})
 
@@ -382,7 +382,7 @@ export async function batchUpdatePathnameMapping(
 			try {
 				const chunk = updates.slice(i, i + chunkSize)
 				// Recursive call with smaller batch
-				await batchUpdatePathnameMapping(kv, targetLang, originDomain, chunk)
+				await batchUpdatePathnameMapping(cache, targetLang, originDomain, chunk)
 			} catch (chunkError) {
 				console.error(`Failed to write chunk ${i}-${i + chunkSize}:`, chunkError)
 				// Continue with next chunk

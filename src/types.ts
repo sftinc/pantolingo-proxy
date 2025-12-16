@@ -2,8 +2,6 @@
  * TypeScript type definitions for the translation proxy
  */
 
-import type { KVNamespace } from '@cloudflare/workers-types'
-
 /**
  * Per-host configuration settings
  */
@@ -71,13 +69,11 @@ export interface TranslationItem {
 }
 
 /**
- * Environment bindings and secrets available to the worker
+ * Environment variables available to the server
  */
 export interface Env {
 	OPENROUTER_API_KEY: string // OpenRouter API key for translation
-	GOOGLE_SERVICE_ACCOUNT_JSON: string // JSON string of Google service account key (legacy, may be removed)
 	GOOGLE_PROJECT_ID: string // Google Cloud project ID (legacy, may be removed)
-	KV: KVNamespace // Cloudflare KV for content-level caching
 }
 
 /**
