@@ -14,7 +14,7 @@ This is a **Node.js/Express translation proxy** that translates websites on-the-
 # Local development (runs with tsx watch for hot reloading)
 npm run dev
 
-# Build for production (TypeScript compilation)
+# Build for production (installs deps + TypeScript compilation)
 npm run build
 
 # Start production server
@@ -76,9 +76,11 @@ The server processes each request through this pipeline (see [index.ts](src/inde
 - `dom-metadata.ts`: Adds SEO metadata (`<html lang>`, `<link hreflang>`)
 
 **[src/translation/](src/translation/)** - Translation engine
-- `translate.ts`: OpenRouter API integration (uses Claude Haiku 4.5)
-  - Type-aware prompts: separate prompts for segments vs pathnames
+- `translate.ts`: OpenRouter API integration (model: `anthropic/claude-haiku-4.5`)
   - Parallel API calls (1 per string)
+- `prompts.ts`: Translation prompts (extracted for cleaner code)
+  - `PATHNAME_PROMPT`: URL-safe pathname translation rules
+  - `SEGMENT_PROMPT`: Website text translation rules
 - `translate-segments.ts`: Deduplication + batch optimization
 - `translate-pathnames.ts`: URL-safe pathname translation with normalization
 - `skip-patterns.ts`: Pattern replacement system for PII/numbers (e.g., `"123.00"` → `"[N1]"`)
@@ -135,10 +137,12 @@ Configure in [config.ts](src/config.ts) via `skipPatterns: ['numeric', 'pii']`.
 
 ### Environment Variables
 
-Required environment variables:
+Required:
 - `OPENROUTER_API_KEY`: OpenRouter API key for translation
-- `GOOGLE_PROJECT_ID`: Legacy, used for API key parameter (can be any string)
+
+Optional:
 - `PORT`: Server port (defaults to 8787)
+- `GOOGLE_PROJECT_ID`: Legacy/deprecated (can be any string or omitted)
 
 ## Key Implementation Details
 
@@ -185,7 +189,7 @@ Required environment variables:
 
 1. Push code to Git repository
 2. Create new Web Service on Render
-3. Set environment variables: `OPENROUTER_API_KEY`, `GOOGLE_PROJECT_ID`
-4. Build command: `npm run build`
+3. Set environment variables: `OPENROUTER_API_KEY`
+4. Build command: `npm run build` (includes `npm install`)
 5. Start command: `npm run start`
 6. Render automatically sets `PORT`
