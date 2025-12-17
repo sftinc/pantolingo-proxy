@@ -176,6 +176,11 @@ function extractHeadDescription(document: Document, segments: Content[]): void {
 export function extractSegments(document: Document): Content[] {
 	const segments: Content[] = []
 
+	// Guard against invalid HTML (no documentElement means parsing failed)
+	if (!document.documentElement) {
+		return segments
+	}
+
 	// Extract head metadata first (title and description)
 	extractHeadTitle(document, segments)
 	extractHeadDescription(document, segments)
@@ -200,6 +205,11 @@ export function extractSegments(document: Document): Content[] {
  */
 export function extractLinkPathnames(document: Document, originHost: string): Set<string> {
 	const pathnames = new Set<string>()
+
+	// Guard against invalid HTML
+	if (!document.documentElement) {
+		return pathnames
+	}
 
 	// Extract pathnames from <a href> links
 	const links = document.querySelectorAll('a[href]')
