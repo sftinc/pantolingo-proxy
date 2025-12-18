@@ -123,9 +123,7 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 
 	try {
 		// 1. Parse request and determine target language from database
-		const dbStart = Date.now()
 		const hostConfig = await getHostConfig(host.startsWith('localhost') ? host.split(':')[0] : host)
-		const hostConfigTime = Date.now() - dbStart
 
 		if (!hostConfig) {
 			res.status(404).set('Content-Type', 'text/plain').send('Not Found')
@@ -205,9 +203,7 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 		}
 
 		// STAGE 1: Early pathname lookup for reverse URL resolution
-		const pathnameLookupStart = Date.now()
 		const pathnameResult = await lookupPathname(hostConfig.hostId, incomingPathname)
-		const pathnameLookupTime = Date.now() - pathnameLookupStart
 		if (pathnameResult) {
 			// If we found a match and the incoming path matches the translated path,
 			// use the original path for fetching
@@ -342,24 +338,16 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 			const { document } = parseHTMLDocument(fetchResult.html)
 
 			// 5. Extract segments
-			const extractStart = Date.now()
 			const extractedSegments = extractSegments(document)
-			const extractTime = Date.now() - extractStart
-			const parseTime = Date.now() - parseStart - extractTime
 			const fetchTime = parseStart - fetchStart
 
 			let cachedHits = 0
 			let cacheMisses = 0
 			let newTranslations: string[] = []
-			let uniqueCount = 0
 			let batchCount = 0
 			let translateTime = 0
-			let appliedCount = 0
-			let applyTime = 0
-			let rewrittenCount = 0
-			let rewriteTime = 0
-			let storedCount = 0
-			let cacheLookupTime = 0
+			let totalPaths = 0
+			let newPaths = 0
 
 			if (extractedSegments.length > 0) {
 				// 6. Apply patterns to normalize text for caching
@@ -383,10 +371,8 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 				}
 
 				// 7. Batch lookup translations from database
-				const cacheStart = Date.now()
 				const segmentTexts = normalizedSegments.map((s) => s.value)
 				const cachedTranslations = await batchGetTranslations(hostConfig.hostId, segmentTexts)
-				cacheLookupTime = Date.now() - cacheStart
 
 				// Match segments with cache
 				const { cached, newSegments, newIndices } = matchSegmentsWithMap(normalizedSegments, cachedTranslations)
@@ -413,6 +399,7 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 					let pathnameMap: Map<string, string> | undefined
 					let pathnameSegments: Content[] = []
 					let pathnameTranslations: string[] = []
+					let totalPaths = 0
 
 					if (!hostConfig.translatePath) {
 						return {
@@ -421,6 +408,7 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 							pathnameMap,
 							pathnameSegments,
 							pathnameTranslations,
+							totalPaths,
 						}
 					}
 
@@ -430,6 +418,7 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 						if (!shouldSkipPath(originalPathname, hostConfig.skipPath)) {
 							allPathnames.add(originalPathname)
 						}
+						totalPaths = allPathnames.size
 
 						if (allPathnames.size === 0) {
 							return {
@@ -438,11 +427,11 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 								pathnameMap,
 								pathnameSegments,
 								pathnameTranslations,
+								totalPaths,
 							}
 						}
 
 						// Normalize paths before DB lookup (DB stores normalized paths)
-						const pathnameDbLookupStart = Date.now()
 						const normalizedToOriginal = new Map<string, string>()
 						for (const path of allPathnames) {
 							const { normalized } = normalizePathname(path)
@@ -450,7 +439,6 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 						}
 						const normalizedPaths = Array.from(normalizedToOriginal.keys())
 						const existingPathnames = await batchLookupPathnames(hostConfig.hostId, normalizedPaths)
-						console.log(`  Pathname DB Lookup: ${allPathnames.size} paths (${Date.now() - pathnameDbLookupStart}ms)`)
 
 						// Build a PathnameMapping-like structure for translatePathnamesBatch
 						// Keys are normalized paths (matching what translatePathnamesBatch looks up)
@@ -460,7 +448,6 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 						} : null
 
 						// Translate all pathnames in one batch
-						const pathnameBatchStart = Date.now()
 						const batchResult = await translatePathnamesBatch(
 							allPathnames,
 							originalPathname,
@@ -480,7 +467,6 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 							},
 							hostConfig.skipPath
 						)
-						console.log(`  Pathname Translate Batch: ${allPathnames.size} paths (${Date.now() - pathnameBatchStart}ms)`)
 
 						// Extract current pathname translation from batch results
 						translatedPathname = batchResult.pathnameMap.get(originalPathname) || originalPathname
@@ -505,6 +491,7 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 						pathnameMap,
 						pathnameSegments,
 						pathnameTranslations,
+						totalPaths,
 					}
 				}
 
@@ -514,7 +501,6 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 
 					// Extract segment translation results
 					newTranslations = segmentResult.translations
-					uniqueCount = segmentResult.uniqueCount
 					batchCount = segmentResult.batchCount
 					translateTime = Date.now() - translateStart
 
@@ -524,6 +510,8 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 					const pathnameMap = pathnameResult.pathnameMap
 					const pathnameSegments = pathnameResult.pathnameSegments
 					const pathnameTranslations = pathnameResult.pathnameTranslations
+					totalPaths = pathnameResult.totalPaths
+					newPaths = pathnameTranslations.length
 
 					// 8. Merge cached + new translations in original order
 					const allTranslations = new Array(extractedSegments.length).fill('')
@@ -545,12 +533,9 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 					})
 
 					// 11. Apply translations to DOM
-					const applyStart = Date.now()
-					appliedCount = applyTranslations(document, restoredTranslations, extractedSegments)
-					applyTime = Date.now() - applyStart
+					applyTranslations(document, restoredTranslations, extractedSegments)
 
 					// 12. Update database with new translations
-					storedCount = 0
 					if (newSegments.length > 0 && newTranslations.length > 0) {
 						const translationItems: TranslationItem[] = newSegments.map((seg, i) => ({
 							original: seg.value,
@@ -567,10 +552,7 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 							})
 						}
 
-						const upsertTransStart = Date.now()
-						const translationIdMap = await batchUpsertTranslations(hostConfig.hostId, translationItems)
-						storedCount = translationIdMap.size
-						console.log(`  Translation Upsert: ${translationItems.length} items (${Date.now() - upsertTransStart}ms)`)
+						await batchUpsertTranslations(hostConfig.hostId, translationItems)
 					}
 
 					// 13. Add current page pathname to batch (accumulate instead of immediate write)
@@ -585,8 +567,7 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 					}
 
 					// 14. Rewrite links
-					const rewriteStart = Date.now()
-					rewrittenCount = rewriteLinks(
+					rewriteLinks(
 						document,
 						originHostname,
 						host,
@@ -595,11 +576,10 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 						hostConfig.translatePath || false,
 						pathnameMap
 					)
-					rewriteTime = Date.now() - rewriteStart
 
 					// 15a. Add lang attribute and hreflang links for SEO
 					try {
-						const langResult = addLangMetadata(
+						addLangMetadata(
 							document,
 							targetLang,
 							sourceLang,
@@ -608,17 +588,6 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 							originalPathname,
 							url
 						)
-
-						if (
-							langResult.langUpdated ||
-							langResult.hreflangAdded > 0 ||
-							langResult.hreflangReplaced > 0 ||
-							langResult.hreflangReformatted > 0
-						) {
-							console.log(
-								`  Lang Metadata: lang=${langResult.langUpdated ? 'updated' : 'ok'}, hreflang +${langResult.hreflangAdded} ~${langResult.hreflangReplaced} fmt=${langResult.hreflangReformatted}`
-							)
-						}
 					} catch (langError) {
 						console.error('[Lang Metadata] Failed:', langError)
 						// Non-blocking - continue serving response
@@ -635,13 +604,9 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 
 					// 15c. Batch write all pathname updates (current page + links) in single operation
 					let pathnameIdMap = new Map<string, number>()
-					let pathnameUpsertTime = 0
 					if (pathnameUpdates.length > 0) {
 						try {
-							const upsertStart = Date.now()
 							pathnameIdMap = await batchUpsertPathnames(hostConfig.hostId, pathnameUpdates)
-							pathnameUpsertTime = Date.now() - upsertStart
-							console.log(`  Pathname Upsert: ${pathnameUpdates.length} paths (${pathnameUpsertTime}ms)`)
 						} catch (error) {
 							console.error('Pathname cache batch update failed:', error)
 							// Non-blocking - continue serving response
@@ -654,7 +619,6 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 					// This saves 1 query per page load.
 					if (normalizedSegments.length > 0) {
 						try {
-							const junctionStart = Date.now()
 							const { normalized: normalizedPath } = normalizePathname(originalPathname)
 							let currentPathnameId = pathnameIdMap.get(normalizedPath)
 
@@ -666,22 +630,14 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 								])
 								currentPathnameId = currentPathResult.get(normalizedPath)
 							}
-							const pathnameTime = Date.now() - junctionStart
 
 							if (currentPathnameId) {
 								// Get ALL translation IDs (cached + new) for this page
 								const allHashes = normalizedSegments.map((s) => hashText(s.value))
-								const lookupStart = Date.now()
 								const allTranslationIds = await batchGetTranslationIds(hostConfig.hostId, allHashes)
-								const lookupTime = Date.now() - lookupStart
 
 								if (allTranslationIds.size > 0) {
-									const linkStart = Date.now()
 									await linkPathnameTranslations(currentPathnameId, Array.from(allTranslationIds.values()))
-									const linkTime = Date.now() - linkStart
-									console.log(
-										`  Junction: pathname ${pathnameTime}ms | lookup ${allTranslationIds.size} IDs ${lookupTime}ms | link ${linkTime}ms`
-									)
 								}
 							}
 						} catch (error) {
@@ -701,42 +657,16 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 				}
 			}
 
-			// 14. Serialize final HTML
-			const serializeStart = Date.now()
+			// Serialize final HTML
 			html = document.toString()
-			const serializeTime = Date.now() - serializeStart
 
-			// Calculate total pipeline time
+			// Calculate total pipeline time and log compact summary
 			const totalTime = Date.now() - fetchStart
-
-			// Log consolidated pipeline summary
-			const formatTime = (ms: number) => ms.toLocaleString('en-US')
-			console.log(`▶ [${targetLang}] ${fetchUrl} (${formatTime(totalTime)}ms)`)
-			console.log(`  DB Init: hostConfig ${hostConfigTime}ms | pathnameLookup ${pathnameLookupTime}ms`)
-
-			// Log consolidated 5-line pipeline summary
-			const cacheStatus =
-				cachedHits === extractedSegments.length
-					? `HIT (${cachedHits}/${extractedSegments.length})`
-					: cachedHits > 0
-					? `PARTIAL (${cachedHits}/${extractedSegments.length})`
-					: 'MISS'
-			const translateLine =
-				newTranslations.length > 0
-					? `Translate: ${extractedSegments.length}→${uniqueCount} unique, ${batchCount} batch, ${translateTime}ms | Cache: ${cacheStatus}`
-					: `Translate: SKIPPED (all cached) | Cache: ${cacheStatus}`
+			const urlObj = new URL(fetchUrl)
+			const transInfo = batchCount > 0 ? `trans: ${batchCount} (${translateTime}ms)` : 'trans: 0'
 			console.log(
-				`  Fetch & Parse: ${fetchTime + parseTime}ms | Extract: ${
-					extractedSegments.length
-				} segments (${extractTime}ms) | Cache Lookup: ${cacheLookupTime}ms`
+				`▶ [${targetLang}] ${urlObj.host}${urlObj.pathname} (${totalTime}ms) | fetch: ${fetchTime}ms | ${transInfo} | seg: ${extractedSegments.length} (+${newTranslations.length}) | paths: ${totalPaths} (+${newPaths})`
 			)
-			console.log(`  ${translateLine}`)
-			console.log(
-				`  Apply: ${appliedCount} translations (${applyTime}ms) | Rewrite: ${rewrittenCount} links (${rewriteTime}ms) | Serialize: ${serializeTime}ms`
-			)
-			if (storedCount > 0) {
-				console.log(`  Cache Updated: ${originHostname}:${originalPathname} → ${storedCount} items stored`)
-			}
 
 			// Send response with cache statistics
 			res.status(200)
