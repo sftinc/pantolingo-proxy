@@ -14,7 +14,7 @@ const PORT = process.env.PORT || 8787
 app.use(express.raw({ type: '*/*', limit: '10mb' }))
 
 // Health check endpoint
-app.get('/_pantolingo-translate/health', (_req, res) => {
+app.get('/pantolingo/__healthcheck', (_req, res) => {
 	res.status(200).json({ status: 'ok' })
 })
 
