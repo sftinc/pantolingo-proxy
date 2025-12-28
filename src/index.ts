@@ -123,6 +123,12 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 	const host = req.get('x-forwarded-host') || req.get('host') || ''
 	const url = new URL(req.originalUrl, `${protocol}://${host}`)
 
+	// Whitelist host: translate.pantolingo.com
+	if (host === 'translate.pantolingo.com') {
+		res.status(200).json({ status: 'ok' })
+		return
+	}
+
 	console.log(`URL: ${url.href}`)
 
 	try {
@@ -379,7 +385,11 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 
 				// 7. Batch lookup translations from database
 				const segmentTexts = normalizedSegments.map((s) => s.value)
-				const cachedTranslations = await batchGetTranslations(hostConfig.originId, hostConfig.targetLang, segmentTexts)
+				const cachedTranslations = await batchGetTranslations(
+					hostConfig.originId,
+					hostConfig.targetLang,
+					segmentTexts
+				)
 
 				// Match segments with cache
 				const { cached, newSegments, newIndices } = matchSegmentsWithMap(normalizedSegments, cachedTranslations)
@@ -454,7 +464,11 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 							normalizedToOriginal.set(normalized, path)
 						}
 						const normalizedPaths = Array.from(normalizedToOriginal.keys())
-						const existingPathnames = await batchLookupPathnames(hostConfig.originId, hostConfig.targetLang, normalizedPaths)
+						const existingPathnames = await batchLookupPathnames(
+							hostConfig.originId,
+							hostConfig.targetLang,
+							normalizedPaths
+						)
 
 						// Build a PathnameMapping-like structure for translatePathnamesBatch
 						// Keys are normalized paths (matching what translatePathnamesBatch looks up)
@@ -611,7 +625,11 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 					let pathnameIdMap = new Map<string, PathIds>()
 					if (pathnameUpdates.length > 0) {
 						try {
-							pathnameIdMap = await batchUpsertPathnames(hostConfig.originId, hostConfig.targetLang, pathnameUpdates)
+							pathnameIdMap = await batchUpsertPathnames(
+								hostConfig.originId,
+								hostConfig.targetLang,
+								pathnameUpdates
+							)
 						} catch (error) {
 							console.error('Pathname cache batch update failed:', error)
 							// Non-blocking - continue serving response
@@ -628,9 +646,11 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 							// Ensure current pathname exists in DB (it may not be in pathnameIdMap
 							// if translatePath is disabled or path didn't change, e.g., "/" → "/")
 							if (!pathIds) {
-								const currentPathResult = await batchUpsertPathnames(hostConfig.originId, hostConfig.targetLang, [
-									{ original: normalizedPath, translated: normalizedPath },
-								])
+								const currentPathResult = await batchUpsertPathnames(
+									hostConfig.originId,
+									hostConfig.targetLang,
+									[{ original: normalizedPath, translated: normalizedPath }]
+								)
 								pathIds = currentPathResult.get(normalizedPath)
 							}
 
