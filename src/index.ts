@@ -20,6 +20,7 @@ import {
 	translatePathnamesBatch,
 } from './translation/translate-pathnames'
 import { isStaticAsset } from './utils'
+import { renderMessagePage } from './utils/message-page'
 import {
 	getHostConfig,
 	lookupPathname,
@@ -130,8 +131,14 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 		const hostConfig = await getHostConfig(host.startsWith('localhost') ? host.split(':')[0] : host)
 
 		if (!hostConfig) {
-			console.log(`Unknown host: ${host}`)
-			res.set('Content-Type', 'text/plain').send(`Host not configured: ${host}`)
+			// console.log(`Unknown host: ${host}`)
+			res.set('Content-Type', 'text/html').send(
+				renderMessagePage({
+					title: 'Host Not Configured',
+					message: `The host "${host}" is not configured for translation through Pantolingo.`,
+					subtitle: `Please check your domain settings or contact support.`,
+				})
+			)
 			return
 		}
 
