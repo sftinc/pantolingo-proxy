@@ -22,3 +22,9 @@ export {
 	type PathIds,
 } from './paths.js'
 export { type PatternType } from './types.js'
+export {
+	getOrCreateOriginPathId,
+	recordPageView,
+	updateSegmentLastUsed,
+	updatePathLastUsed,
+} from './views.js'

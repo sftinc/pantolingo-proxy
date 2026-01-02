@@ -31,6 +31,10 @@ import {
 	batchGetOriginSegmentIds,
 	linkPathSegments,
 	hashText,
+	getOrCreateOriginPathId,
+	recordPageView,
+	updateSegmentLastUsed,
+	updatePathLastUsed,
 	type TranslationItem,
 	type PathnameMapping,
 	type PathIds,
@@ -398,6 +402,12 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 				cachedHits = cached.size
 				cacheMisses = newSegments.length
 
+				// Update last_used_at for cached segments (fire-and-forget)
+				if (cachedTranslations.size > 0) {
+					const cachedHashes = Array.from(cachedTranslations.keys()).map((text) => hashText(text))
+					updateSegmentLastUsed(hostConfig.originId, hostConfig.targetLang, cachedHashes)
+				}
+
 				// 8. Extract link pathnames early (before translation) for parallel processing
 				const linkPathnames = hostConfig.translatePath
 					? extractLinkPathnames(document, originHostname)
@@ -470,6 +480,15 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 							hostConfig.targetLang,
 							normalizedPaths
 						)
+
+						// Update last_used_at for cached paths (fire-and-forget)
+						if (existingPathnames.size > 0) {
+							updatePathLastUsed(
+								hostConfig.originId,
+								hostConfig.targetLang,
+								Array.from(existingPathnames.keys())
+							)
+						}
 
 						// Build a PathnameMapping-like structure for translatePathnamesBatch
 						// Keys are normalized paths (matching what translatePathnamesBatch looks up)
@@ -669,6 +688,7 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 							// Non-blocking - continue serving response
 						}
 					}
+
 				} catch (translationError) {
 					// Translation failed - return original HTML with debug header
 					console.error('Translation error, returning original HTML:', translationError)
@@ -679,6 +699,19 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 						.send(fetchResult.html)
 					return
 				}
+			}
+
+			// Record page view for all HTML pages (non-blocking, fire-and-forget)
+			try {
+				const { normalized: normalizedPath } = normalizePathname(originalPathname)
+				const originPathId = await getOrCreateOriginPathId(hostConfig.originId, normalizedPath)
+
+				if (originPathId) {
+					recordPageView(originPathId, hostConfig.targetLang)
+				}
+			} catch (error) {
+				console.error('Failed to record page view:', error)
+				// Non-blocking - continue serving response
 			}
 
 			// Serialize final HTML
