@@ -174,12 +174,12 @@ export async function batchUpsertPathnames(
 
 		// Step 2: Upsert translated_path (translations)
 		const result = await pool.query<{ id: number; origin_path_id: number; path: string }>(
-			`INSERT INTO translated_path (origin_id, lang, origin_path_id, translated_path, hit_count)
-			SELECT $1, $2, op.id, t.translated, 1
+			`INSERT INTO translated_path (origin_path_id, lang, translated_path)
+			SELECT op.id, $2, t.translated
 			FROM unnest($3::text[], $4::text[]) AS t(original, translated)
 			JOIN origin_path op ON op.origin_id = $1 AND op.path = t.original
 			ON CONFLICT (origin_path_id, lang)
-			DO UPDATE SET hit_count = translated_path.hit_count + 1
+			DO NOTHING
 			RETURNING id, origin_path_id, (SELECT path FROM origin_path WHERE id = origin_path_id) AS path`,
 			[originId, lang, originals, translated]
 		)

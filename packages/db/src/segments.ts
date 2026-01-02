@@ -117,8 +117,8 @@ export async function batchUpsertTranslations(
 
 		// Step 2: Upsert translated_segment (translations)
 		const result = await pool.query<{ id: number; text_hash: string }>(
-			`INSERT INTO translated_segment (origin_id, lang, origin_segment_id, translated_text)
-			SELECT $1, $2, os.id, t.translated
+			`INSERT INTO translated_segment (origin_segment_id, lang, translated_text)
+			SELECT os.id, $2, t.translated
 			FROM unnest($3::text[], $4::text[]) AS t(hash, translated)
 			JOIN origin_segment os ON os.origin_id = $1 AND os.text_hash = t.hash
 			ON CONFLICT (origin_segment_id, lang) DO NOTHING
