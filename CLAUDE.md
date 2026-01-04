@@ -2,17 +2,18 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## IMPORTANT: Commit Messages
+# IMPORTANT Instructions
 
-**Do NOT include "Generated with Claude Code" or similar attribution in commit messages.** Keep commit messages clean and focused on the changes only.
+-   **Commit messages**: Do NOT include "Generated with Claude Code" or similar attribution. Keep commit messages clean and focused on the changes only.
+-   **Plans**: When generating a plan, include a link to the plan file in the summary so the full plan can be viewed.
 
 ## Project Overview
 
 Pantolingo is a **pnpm monorepo** with two applications and a shared database package:
 
-- **`apps/translate`**: Translation proxy (Express) that translates websites on-the-fly
-- **`apps/www`**: Customer-facing website (Next.js) for managing translation domains
-- **`packages/db`**: Shared PostgreSQL database layer
+-   **`apps/translate`**: Translation proxy (Express) that translates websites on-the-fly
+-   **`apps/www`**: Customer-facing website (Next.js) for managing translation domains
+-   **`packages/db`**: Shared PostgreSQL database layer
 
 **Core Use Case**: Host translated versions of a website on different domains (e.g., `es.esnipe.com` for Spanish, `fr.esnipe.com` for French) without maintaining separate codebases.
 
@@ -47,11 +48,11 @@ pantolingo/
 │       │   ├── segments.ts     # Translation segment queries
 │       │   ├── paths.ts        # URL path mapping queries
 │       │   ├── junctions.ts    # Junction table queries
+│       │   ├── views.ts        # Page view analytics
 │       │   └── utils/hash.ts   # Text hashing utility
 │       ├── package.json
 │       └── tsconfig.json
 │
-├── dev/postgres/               # Database schema files
 ├── package.json                # Root workspace config
 ├── pnpm-workspace.yaml         # pnpm workspace definition
 └── tsconfig.base.json          # Shared TypeScript config
@@ -95,31 +96,33 @@ The translation proxy processes each request through this pipeline:
 
 **Key Flow**:
 
-- Requests hit Express → Host determines target language from database (`host` table)
-- Static assets (`.js`, `.css`, `.png`, etc.) are proxied directly with optional caching
-- HTML content flows through the full translation pipeline
-- PostgreSQL stores: host configuration, translations, and pathname mappings
+-   Requests hit Express → Host determines target language from database (`host` table)
+-   Static assets (`.js`, `.css`, `.png`, etc.) are proxied directly with optional caching
+-   HTML content flows through the full translation pipeline
+-   PostgreSQL stores: host configuration, translations, and pathname mappings
 
 **Core Modules**:
 
-- `server.ts`: Express server entry point, database connection
-- `index.ts`: Main request handler, orchestrates the pipeline
-- `config.ts`: Constants and fallback configuration
-- `fetch/`: DOM manipulation (parsing, extraction, application, rewriting)
-- `translation/`: Translation engine (OpenRouter API, deduplication, patterns)
+-   `server.ts`: Express server entry point, database connection
+-   `index.ts`: Main request handler, orchestrates the pipeline
+-   `config.ts`: Constants and fallback configuration
+-   `fetch/`: DOM manipulation (parsing, extraction, application, rewriting)
+-   `translation/`: Translation engine (OpenRouter API, deduplication, patterns)
 
 ### Shared Database Package (`packages/db`)
 
 Provides PostgreSQL queries and utilities used by both apps:
 
-- `pool.ts`: Connection pool with lazy initialization (uses Proxy to defer pool creation until first query, ensuring env vars are loaded)
-- `host.ts`: Host configuration queries with in-memory caching
-- `segments.ts`: Batch get/upsert translations with hash-based lookups
-- `paths.ts`: Bidirectional URL mapping storage
-- `junctions.ts`: Junction table linking translations to pathnames
-- `utils/hash.ts`: SHA-256 hashing for text lookups
+-   `pool.ts`: Connection pool with lazy initialization (uses Proxy to defer pool creation until first query, ensuring env vars are loaded)
+-   `host.ts`: Host configuration queries with in-memory caching
+-   `segments.ts`: Batch get/upsert translations with hash-based lookups
+-   `paths.ts`: Bidirectional URL mapping storage
+-   `junctions.ts`: Junction table linking translations to pathnames
+-   `views.ts`: Page view recording and last_used_on timestamp updates
+-   `utils/hash.ts`: SHA-256 hashing for text lookups
 
 **Usage in apps**:
+
 ```typescript
 import { getHostConfig, batchGetTranslations } from '@pantolingo/db'
 ```
@@ -128,23 +131,25 @@ import { getHostConfig, batchGetTranslations } from '@pantolingo/db'
 
 Next.js 16 app with Tailwind CSS v4. Placeholder pages (to be implemented):
 
-- Marketing pages: `/`, `/pricing`, `/contact`, `/rtc`
-- Auth pages: `/login`, `/signup`
-- Dashboard: `/dashboard`
+-   Marketing pages: `/`, `/pricing`, `/contact`, `/rtc`
+-   Auth pages: `/login`, `/signup`
+-   Dashboard: `/dashboard`
 
 ### Database Schema
 
-Schema file: [dev/postgres/pg-schema.sql](dev/postgres/pg-schema.sql)
-
 **Tables** (origin-scoped model):
 
-- `origin`: Origin websites (domain, source language)
-- `host`: Translated domains (hostname, target language, config options)
-- `origin_segment`: Source text segments scoped to origin (text, text_hash)
-- `translated_segment`: Translations scoped to origin + language
-- `origin_path`: Source URL paths scoped to origin
-- `translated_path`: Translated URL paths scoped to origin + language
-- `origin_path_segment`: Junction linking paths to segments (for cache invalidation)
+-   `origin`: Origin websites (domain, source language)
+-   `host`: Translated domains (hostname, target language, config options)
+-   `origin_segment`: Source text segments scoped to origin (text, text_hash)
+-   `translated_segment`: Translations scoped to origin + language
+-   `origin_path`: Source URL paths scoped to origin
+-   `translated_path`: Translated URL paths scoped to origin + language
+-   `origin_path_segment`: Junction linking paths to segments (for cache invalidation)
+-   `origin_path_view`: Page view analytics per path/language
+-   `company`: Companies (for multi-tenant billing)
+-   `company_user`: Company membership
+-   `user`: User accounts
 
 ### Environment Variables
 
@@ -152,12 +157,12 @@ Schema file: [dev/postgres/pg-schema.sql](dev/postgres/pg-schema.sql)
 
 Required:
 
-- `POSTGRES_DB_URL`: PostgreSQL connection string
-- `OPENROUTER_API_KEY`: OpenRouter API key for translation
+-   `POSTGRES_DB_URL`: PostgreSQL connection string
+-   `OPENROUTER_API_KEY`: OpenRouter API key for translation
 
 Optional:
 
-- `PORT`: Server port (defaults to 8787)
+-   `PORT`: Server port (defaults to 8787)
 
 Copy `.env` to get started (never commit secrets).
 
@@ -175,7 +180,7 @@ Each app deploys as a separate Render service. Both apps share the same PostgreS
 3. **Build command**: `pnpm install && pnpm build:translate`
 4. **Start command**: `node apps/translate/dist/server.js`
 5. **Build Filters** (Settings → Build & Deploy → Build Filters):
-   - Include paths: `apps/translate/**`, `packages/db/**`, `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`
+    - Include paths: `apps/translate/**`, `packages/db/**`, `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`
 
 ### Customer Website (`apps/www`)
 
@@ -185,10 +190,14 @@ Each app deploys as a separate Render service. Both apps share the same PostgreS
 4. **Build command**: `pnpm install && pnpm build:www`
 5. **Start command**: `pnpm start:www`
 6. **Build Filters**:
-   - Include paths: `apps/www/**`, `packages/db/**`, `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`
+    - Include paths: `apps/www/**`, `packages/db/**`, `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`
 7. Add environment variables (`POSTGRES_DB_URL`, etc.)
+
+## Testing and Linting
+
+No test framework or linter is currently configured. TypeScript compilation (`tsc`) is the only code quality check.
 
 ## Future Considerations (not yet implemented)
 
-- Authentication system for `apps/www` (schema has `user` table, app needs integration)
-- Billing integration
+-   Authentication system for `apps/www` (schema has `user` table, app needs integration)
+-   Billing integration
