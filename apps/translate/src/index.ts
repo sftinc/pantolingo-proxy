@@ -51,6 +51,7 @@ interface DeferredWrites {
 	newSegmentHashes: string[]
 	cachedSegmentHashes: string[]
 	cachedPaths: string[]
+	originPathId?: number // ID from stage 1 lookup (for existing paths)
 }
 
 /**
@@ -58,7 +59,7 @@ interface DeferredWrites {
  * All operations are non-blocking and errors are logged but don't affect the response
  */
 async function executeDeferredWrites(writes: DeferredWrites): Promise<void> {
-	const { originId, lang, translations, pathnames, currentPath, newSegmentHashes, cachedSegmentHashes, cachedPaths } =
+	const { originId, lang, translations, pathnames, currentPath, newSegmentHashes, cachedSegmentHashes, cachedPaths, originPathId } =
 		writes
 
 	try {
@@ -73,11 +74,17 @@ async function executeDeferredWrites(writes: DeferredWrites): Promise<void> {
 		// 3. Link new segments to current path
 		let pathIds = pathnameIdMap.get(currentPath)
 
-		// Fallback: lookup origin_path_id if not returned from upsert (path already existed)
+		// Use lookup ID for existing paths (upsert returns nothing for ON CONFLICT DO NOTHING)
+		if (!pathIds?.originPathId && originPathId) {
+			pathIds = { originPathId, translatedPathId: 0 }
+		}
+
+		// Fallback for unexpected edge cases
 		if (!pathIds?.originPathId) {
-			const originPathId = await getOriginPathId(originId, currentPath)
-			if (originPathId) {
-				pathIds = { originPathId, translatedPathId: 0 }
+			console.warn('getOriginPathId fallback triggered - investigate:', currentPath)
+			const fallbackId = await getOriginPathId(originId, currentPath)
+			if (fallbackId) {
+				pathIds = { originPathId: fallbackId, translatedPathId: 0 }
 			}
 		}
 
@@ -417,6 +424,7 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 				newSegmentHashes: [],
 				cachedSegmentHashes: [],
 				cachedPaths: [],
+				originPathId: pathnameResult?.originPathId,
 			}
 
 			// Fetch HTML content for translation

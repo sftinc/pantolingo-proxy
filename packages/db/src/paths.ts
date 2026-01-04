@@ -34,6 +34,7 @@ export async function getOriginPathId(originId: number, path: string): Promise<n
  * Pathname mapping result
  */
 export interface PathnameResult {
+	originPathId: number
 	originalPath: string
 	translatedPath: string
 }
@@ -73,10 +74,11 @@ export async function lookupPathname(
 ): Promise<PathnameResult | null> {
 	try {
 		const result = await pool.query<{
+			id: number
 			path: string
 			translated_path: string
 		}>(
-			`SELECT op.path, tp.translated_path
+			`SELECT op.id, op.path, tp.translated_path
 			FROM origin_path op
 			JOIN translated_path tp ON tp.origin_path_id = op.id
 			WHERE op.origin_id = $1
@@ -92,6 +94,7 @@ export async function lookupPathname(
 
 		const row = result.rows[0]
 		return {
+			originPathId: row.id,
 			originalPath: row.path,
 			translatedPath: row.translated_path,
 		}
