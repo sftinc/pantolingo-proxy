@@ -200,9 +200,9 @@ function rewriteRedirectLocation(location: string, translatedHost: string, origi
 	}
 }
 
-// Environment variables
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || ''
-const GOOGLE_PROJECT_ID = process.env.GOOGLE_PROJECT_ID || ''
+// Environment variables - read lazily to ensure dotenv has loaded
+const OPENROUTER_API_KEY = () => process.env.OPENROUTER_API_KEY || ''
+const GOOGLE_PROJECT_ID = () => process.env.GOOGLE_PROJECT_ID || ''
 
 /**
  * Main request handler for Express
@@ -521,8 +521,8 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 								newSegments,
 								sourceLang,
 								targetLang,
-								GOOGLE_PROJECT_ID,
-								OPENROUTER_API_KEY,
+								GOOGLE_PROJECT_ID(),
+								OPENROUTER_API_KEY(),
 								hostConfig.skipWords
 						  )
 						: Promise.resolve({ translations: [], uniqueCount: 0, batchCount: 0 })
@@ -606,8 +606,8 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 									segments,
 									sourceLang,
 									targetLang,
-									GOOGLE_PROJECT_ID,
-									OPENROUTER_API_KEY,
+									GOOGLE_PROJECT_ID(),
+									OPENROUTER_API_KEY(),
 									hostConfig.skipWords
 								)
 								return result.translations
@@ -684,15 +684,6 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 							original: seg.value,
 							translated: newTranslations[i],
 						}))
-
-						// Add pathname translation if we have one (store normalized versions)
-						if (pathnameSegment && translatedPathname !== originalPathname) {
-							const { normalized: normalizedTranslatedPath } = normalizePathname(translatedPathname)
-							deferredWrites.translations.push({
-								original: pathnameSegment.value,
-								translated: normalizedTranslatedPath,
-							})
-						}
 
 						// Collect new segment hashes for path-segment linking
 						deferredWrites.newSegmentHashes = newSegments.map((s) => hashText(s.value))

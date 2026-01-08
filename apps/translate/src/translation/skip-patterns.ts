@@ -18,7 +18,8 @@ import type { PatternType, PatternReplacement, PatternizedText } from '../types.
 
 // Regex for numeric pattern: matches numbers with commas and decimals
 // Requires at least one digit to avoid false matches on pure punctuation like "..."
-const NUMERIC_PATTERN = /[0-9.,]*\d[0-9.,]*/g
+// Negative lookbehind excludes numbers that are part of placeholders like [HA1], [/HA1], [N1], [S1]
+const NUMERIC_PATTERN = /(?<!\[\/?[A-Z]+)[0-9.,]*\d[0-9.,]*/g
 const NUMERIC_PLACEHOLDER_PREFIX = '[N'
 
 // Email pattern: Simple regex catches 99% of real-world emails
@@ -95,7 +96,7 @@ export function applyPatterns(
 		let index = 1
 
 		// Replace each match with indexed placeholder
-		normalized = text.replace(NUMERIC_PATTERN, (match) => {
+		normalized = normalized.replace(NUMERIC_PATTERN, (match) => {
 			values.push(match)
 			return `[N${index++}]`
 		})
