@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Modal, ModalFooter, Button } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
+import { PlaceholderText } from '@/components/ui/PlaceholderText'
 import { getLanguageName } from '@/lib/utils'
 import {
 	saveSegmentTranslation,
@@ -88,9 +89,13 @@ export function EditModal({
 					</div>
 					<div className="rounded-lg border border-[var(--border)] bg-[var(--page-bg)] p-4 min-h-[200px]">
 						{type === 'path' ? (
-							<code className="text-sm whitespace-pre-wrap break-all">{originalText}</code>
+							<code className="text-sm whitespace-pre-wrap break-all">
+								<PlaceholderText text={originalText} />
+							</code>
 						) : (
-							<p className="text-sm whitespace-pre-wrap">{originalText}</p>
+							<p className="text-sm whitespace-pre-wrap">
+								<PlaceholderText text={originalText} />
+							</p>
 						)}
 					</div>
 				</div>

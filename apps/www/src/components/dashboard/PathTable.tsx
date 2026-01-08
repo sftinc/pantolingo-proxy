@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, EmptyState } from '@/components/ui/Table'
 import { Badge } from '@/components/ui/Badge'
-import { truncate } from '@/lib/utils'
+import { PlaceholderText } from '@/components/ui/PlaceholderText'
 import { EditModal } from './EditModal'
 import type { PathWithTranslation } from '@pantolingo/db'
 
@@ -39,14 +39,20 @@ export function PathTable({ paths, hostId, targetLang, onUpdate }: PathTableProp
 							onClick={() => setEditingPath(path)}
 						>
 							<TableCell>
-								<code className="text-sm text-[var(--text-muted)]" title={path.path}>
-									{truncate(path.path, 60)}
+								<code
+									className="block max-w-[300px] overflow-hidden text-ellipsis whitespace-nowrap text-sm text-[var(--text-muted)]"
+									title={path.path}
+								>
+									<PlaceholderText text={path.path} />
 								</code>
 							</TableCell>
 							<TableCell>
 								{path.translatedPath ? (
-									<code className="text-sm" title={path.translatedPath}>
-										{truncate(path.translatedPath, 60)}
+									<code
+										className="block max-w-[300px] overflow-hidden text-ellipsis whitespace-nowrap text-sm"
+										title={path.translatedPath}
+									>
+										<PlaceholderText text={path.translatedPath} />
 									</code>
 								) : (
 									<span className="text-[var(--text-subtle)] italic">Not translated</span>

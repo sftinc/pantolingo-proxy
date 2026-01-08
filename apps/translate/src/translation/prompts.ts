@@ -149,11 +149,7 @@ export const SEGMENT_PROMPT = `You are a website text translator. Translate the 
   - Example: "The [HB1]red[/HB1] car" → "La voiture [HB1]rouge[/HB1]" (French adjective moves after noun)
 - Example: "This is [HB1]important[/HB1]" → "Esto es [HB1]importante[/HB1]"
 
-3) Localize number formats and preserve technical tokens
-- Numbers are represented as placeholders with separators (e.g., "[N1],[N2].[N3]")
-- Localize number formatting by adjusting separators to target language conventions:
-  - Example: "[N1],[N2].[N3]" (English) → "[N1].[N2],[N3]" (German)
-  - Swap decimal points and thousands separators as appropriate for the target locale
+3) Preserve technical tokens, currency, and units
 - Technical tokens always remain unchanged: API, OAuth, JSON, URL, ID, v2, etc.
 - Currency symbols ($, €, £) and units (kg, cm, mi) remain unchanged
 

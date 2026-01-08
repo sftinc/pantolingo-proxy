@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, EmptyState } from '@/components/ui/Table'
 import { Badge } from '@/components/ui/Badge'
-import { truncate } from '@/lib/utils'
+import { PlaceholderText } from '@/components/ui/PlaceholderText'
 import { EditModal } from './EditModal'
 import type { SegmentWithTranslation } from '@pantolingo/db'
 
@@ -39,14 +39,20 @@ export function SegmentTable({ segments, hostId, targetLang, onUpdate }: Segment
 							onClick={() => setEditingSegment(segment)}
 						>
 							<TableCell>
-								<span className="text-[var(--text-muted)]" title={segment.text}>
-									{truncate(segment.text, 80)}
+								<span
+									className="block max-w-[400px] overflow-hidden text-ellipsis whitespace-nowrap text-[var(--text-muted)]"
+									title={segment.text}
+								>
+									<PlaceholderText text={segment.text} />
 								</span>
 							</TableCell>
 							<TableCell>
 								{segment.translatedText ? (
-									<span title={segment.translatedText}>
-										{truncate(segment.translatedText, 80)}
+									<span
+										className="block max-w-[400px] overflow-hidden text-ellipsis whitespace-nowrap"
+										title={segment.translatedText}
+									>
+										<PlaceholderText text={segment.translatedText} />
 									</span>
 								) : (
 									<span className="text-[var(--text-subtle)] italic">Not translated</span>
