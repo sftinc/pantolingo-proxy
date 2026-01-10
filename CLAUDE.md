@@ -17,11 +17,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Pantolingo is a **pnpm monorepo** with two applications and a shared database package:
+Pantolingo is a **pnpm monorepo** with two applications and shared packages:
 
 -   **`apps/translate`**: Translation proxy (Express) that translates websites on-the-fly
 -   **`apps/www`**: Customer-facing website (Next.js) for managing translation domains
 -   **`packages/db`**: Shared PostgreSQL database layer
+-   **`packages/lang`**: Shared language utilities (41 supported languages, RTL detection)
 
 **Core Use Case**: Host translated versions of a website on different domains (e.g., `es.esnipe.com` for Spanish, `fr.esnipe.com` for French) without maintaining separate codebases.
 
@@ -41,25 +42,44 @@ pantolingo/
 │   │   └── tsconfig.json
 │   │
 │   └── www/                    # Customer website (Next.js)
-│       ├── src/app/
-│       │   ├── (marketing)/    # Public pages (/, /pricing, /contact, /rtc)
-│       │   ├── (auth)/         # Auth pages (/login, /signup)
-│       │   └── (dashboard)/    # Customer dashboard (/dashboard)
+│       ├── src/
+│       │   ├── app/
+│       │   │   ├── (marketing)/    # Public pages (/)
+│       │   │   ├── (auth)/         # Auth pages (/login, /signup)
+│       │   │   └── (dashboard)/    # Customer dashboard
+│       │   │       └── dashboard/
+│       │   │           ├── page.tsx                        # /dashboard - origins overview
+│       │   │           └── origin/[id]/
+│       │   │               ├── page.tsx                    # /dashboard/origin/:id - language list
+│       │   │               └── lang/[langCd]/page.tsx      # /dashboard/origin/:id/lang/:langCd - translations
+│       │   ├── actions/            # Server actions
+│       │   ├── components/         # React components
+│       │   │   ├── ui/             # Reusable UI (Modal, Table, Badge, Lexical editor)
+│       │   │   └── dashboard/      # Dashboard-specific (EditModal, LangTable, OriginCard)
+│       │   └── lib/                # Utilities
 │       ├── package.json
 │       └── tsconfig.json
 │
 ├── packages/
-│   └── db/                     # Shared database layer
+│   ├── db/                     # Shared database layer
+│   │   ├── src/
+│   │   │   ├── pool.ts         # PostgreSQL connection pool (lazy init via Proxy)
+│   │   │   ├── host.ts         # Host configuration queries with caching
+│   │   │   ├── segments.ts     # Translation segment queries
+│   │   │   ├── paths.ts        # URL path mapping queries
+│   │   │   ├── junctions.ts    # Junction table queries
+│   │   │   ├── views.ts        # Page view analytics
+│   │   │   ├── dashboard.ts    # Dashboard CRUD operations for www app
+│   │   │   └── utils/hash.ts   # SHA-256 hashing utility
+│   │   └── package.json
+│   │
+│   └── lang/                   # Shared language utilities
 │       ├── src/
-│       │   ├── pool.ts         # PostgreSQL connection pool
-│       │   ├── host.ts         # Host configuration queries
-│       │   ├── segments.ts     # Translation segment queries
-│       │   ├── paths.ts        # URL path mapping queries
-│       │   ├── junctions.ts    # Junction table queries
-│       │   ├── views.ts        # Page view analytics
-│       │   └── utils/hash.ts   # Text hashing utility
-│       ├── package.json
-│       └── tsconfig.json
+│       │   ├── index.ts        # Exports all language utilities
+│       │   ├── data.ts         # Static language data (41 supported languages)
+│       │   ├── info.ts         # Intl.DisplayNames-based language info
+│       │   └── lookup.ts       # Country/language mappings, RTL detection
+│       └── package.json
 │
 ├── package.json                # Root workspace config
 ├── pnpm-workspace.yaml         # pnpm workspace definition
@@ -148,21 +168,45 @@ Provides PostgreSQL queries and utilities used by both apps:
 -   `paths.ts`: Bidirectional URL mapping storage
 -   `junctions.ts`: Junction table linking translations to pathnames
 -   `views.ts`: Page view recording and last_used_on timestamp updates
+-   `dashboard.ts`: Dashboard CRUD operations (origins, languages, segments, paths with stats and pagination)
 -   `utils/hash.ts`: SHA-256 hashing for text lookups
 
 **Usage in apps**:
 
 ```typescript
 import { getHostConfig, batchGetTranslations } from '@pantolingo/db'
+import { getOriginsWithStats, updateSegmentTranslation } from '@pantolingo/db'
+```
+
+### Shared Language Package (`packages/lang`)
+
+Provides language metadata and utilities using `Intl.DisplayNames`:
+
+-   41 supported languages with localized display names
+-   RTL language detection (Arabic, Hebrew, Farsi, Urdu)
+-   Country-language mappings
+
+**Usage in apps**:
+
+```typescript
+import { getLanguageInfo, isRtlLanguage, SUPPORTED_LANGUAGES } from '@pantolingo/lang'
 ```
 
 ### Customer Website (`apps/www`)
 
-Next.js 16 app with Tailwind CSS v4. Placeholder pages (to be implemented):
+Next.js 16 app with Tailwind CSS v4 and React 19.
 
--   Marketing pages: `/`, `/pricing`, `/contact`, `/rtc`
--   Auth pages: `/login`, `/signup`
--   Dashboard: `/dashboard`
+**Routes**:
+-   `/` - Marketing landing page
+-   `/login`, `/signup` - Auth pages
+-   `/dashboard` - Origins overview with segment/path counts
+-   `/dashboard/origin/[id]` - Language list for an origin
+-   `/dashboard/origin/[id]/lang/[langCd]` - Translation editor for segments and paths
+
+**Key Components**:
+-   `EditModal` - Modal with Lexical-based editor for editing translations
+-   `LangTable`, `SegmentTable`, `PathTable` - Data tables with pagination
+-   `PlaceholderEditor` - Lexical editor with placeholder validation (preserves `[HB1]...[/HB1]` formatting)
 
 ### Database Schema
 
@@ -209,7 +253,7 @@ Each app deploys as a separate Render service. Both apps share the same PostgreS
 3. **Build command**: `pnpm install && pnpm build:translate`
 4. **Start command**: `node apps/translate/dist/server.js`
 5. **Build Filters** (Settings → Build & Deploy → Build Filters):
-    - Include paths: `apps/translate/**`, `packages/db/**`, `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`
+    - Include paths: `apps/translate/**`, `packages/db/**`, `packages/lang/**`, `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`
 
 ### Customer Website (`apps/www`)
 
@@ -219,14 +263,9 @@ Each app deploys as a separate Render service. Both apps share the same PostgreS
 4. **Build command**: `pnpm install && pnpm build:www`
 5. **Start command**: `pnpm start:www`
 6. **Build Filters**:
-    - Include paths: `apps/www/**`, `packages/db/**`, `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`
+    - Include paths: `apps/www/**`, `packages/db/**`, `packages/lang/**`, `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`
 7. Add environment variables (`POSTGRES_DB_URL`, etc.)
 
 ## Testing and Linting
 
 No test framework or linter is currently configured. TypeScript compilation (`tsc`) is the only code quality check.
-
-## Future Considerations (not yet implemented)
-
--   Authentication system for `apps/www` (schema has `user` table, app needs integration)
--   Billing integration

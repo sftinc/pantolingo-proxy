@@ -3,7 +3,8 @@
 import { useRouter } from 'next/navigation'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, EmptyState } from '@/components/ui/Table'
 import { Badge } from '@/components/ui/Badge'
-import { formatNumber, getLanguageName } from '@/lib/utils'
+import { formatNumber } from '@/lib/utils'
+import { getLanguageLabel } from '@pantolingo/lang'
 import type { LangWithStats } from '@pantolingo/db'
 
 interface LangTableProps {
@@ -35,7 +36,7 @@ export function LangTable({ langs, originId }: LangTableProps) {
 						clickable
 						onClick={() => router.push(`/dashboard/origin/${originId}/lang/${lang.targetLang}`)}
 					>
-						<TableCell className="font-medium">{getLanguageName(lang.targetLang)}</TableCell>
+						<TableCell className="font-medium">{getLanguageLabel(lang.targetLang)}</TableCell>
 						<TableCell className="text-right tabular-nums">
 							{formatNumber(lang.translatedSegmentCount)}
 						</TableCell>

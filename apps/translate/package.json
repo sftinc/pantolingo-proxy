@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@pantolingo/db": "workspace:*",
+    "@pantolingo/lang": "workspace:*",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "linkedom": "^0.18.12"

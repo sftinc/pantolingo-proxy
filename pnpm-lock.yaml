@@ -17,6 +17,9 @@ importers:
       '@pantolingo/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@pantolingo/lang':
+        specifier: workspace:*
+        version: link:../../packages/lang
       dotenv:
         specifier: ^17.2.3
         version: 17.2.3
@@ -54,6 +57,9 @@ importers:
       '@pantolingo/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@pantolingo/lang':
+        specifier: workspace:*
+        version: link:../../packages/lang
       '@tailwindcss/postcss':
         specifier: ^4.1.18
         version: 4.1.18
@@ -101,6 +107,12 @@ importers:
       '@types/pg':
         specifier: ^8.16.0
         version: 8.16.0
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/lang:
+    devDependencies:
       typescript:
         specifier: ^5.9.3
         version: 5.9.3

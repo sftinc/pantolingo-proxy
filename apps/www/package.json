@@ -12,6 +12,7 @@
     "@lexical/react": "^0.39.0",
     "@lexical/rich-text": "^0.39.0",
     "@pantolingo/db": "workspace:*",
+    "@pantolingo/lang": "workspace:*",
     "@tailwindcss/postcss": "^4.1.18",
     "lexical": "^0.39.0",
     "next": "^16.1.1",

@@ -5,7 +5,8 @@ import { SegmentTable } from '@/components/dashboard/SegmentTable'
 import { PathTable } from '@/components/dashboard/PathTable'
 import { Toggle } from '@/components/ui/Toggle'
 import { Pagination } from '@/components/ui/Pagination'
-import { formatNumber, getLanguageName } from '@/lib/utils'
+import { formatNumber } from '@/lib/utils'
+import { getFlag, getLanguageLabel } from '@pantolingo/lang'
 
 export const dynamic = 'force-dynamic'
 
@@ -60,10 +61,10 @@ export default async function LangDetailPage({ params, searchParams }: LangDetai
 				breadcrumbs={[
 					{ label: 'Dashboard', href: '/dashboard' },
 					{
-						label: `${origin.domain} (${origin.originLang})`,
+						label: `${origin.domain} ${getFlag(origin.originLang)}`,
 						href: `/dashboard/origin/${originId}`,
 					},
-					{ label: getLanguageName(langCd) },
+					{ label: getLanguageLabel(langCd) },
 				]}
 			/>
 

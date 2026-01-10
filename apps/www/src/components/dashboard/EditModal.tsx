@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/lexical/PlaceholderEditor'
 import { MissingPlaceholderToolbar } from '@/components/ui/lexical/MissingPlaceholderToolbar'
 import { validatePlaceholders, type ValidationResult } from '@/components/ui/lexical/placeholder-utils'
-import { getLanguageName } from '@/lib/utils'
+import { getLanguageName } from '@pantolingo/lang'
 import {
 	saveSegmentTranslation,
 	savePathTranslation,

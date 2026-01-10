@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { getOriginById, getLangsForOrigin } from '@pantolingo/db'
+import { getFlag } from '@pantolingo/lang'
 import { DashboardNav } from '@/components/dashboard/DashboardNav'
 import { LangTable } from '@/components/dashboard/LangTable'
 
@@ -30,7 +31,7 @@ export default async function OriginDetailPage({ params }: OriginDetailPageProps
 			<DashboardNav
 				breadcrumbs={[
 					{ label: 'Dashboard', href: '/dashboard' },
-					{ label: `${origin.domain} (${origin.originLang})` },
+					{ label: `${origin.domain} ${getFlag(origin.originLang)}` },
 				]}
 			/>
 

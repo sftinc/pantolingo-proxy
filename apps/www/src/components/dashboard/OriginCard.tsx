@@ -1,5 +1,6 @@
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card'
-import { formatNumber, getLanguageName } from '@/lib/utils'
+import { formatNumber } from '@/lib/utils'
+import { getLanguageName } from '@pantolingo/lang'
 import type { OriginWithStats } from '@pantolingo/db'
 
 interface OriginCardProps {
