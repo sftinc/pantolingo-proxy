@@ -523,7 +523,8 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 								targetLang,
 								GOOGLE_PROJECT_ID(),
 								OPENROUTER_API_KEY(),
-								hostConfig.skipWords
+								hostConfig.skipWords,
+								'balanced' // TODO: Use hostConfig.style after DB migration
 						  )
 						: Promise.resolve({ translations: [], uniqueCount: 0, batchCount: 0 })
 
@@ -602,13 +603,15 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 							allPathnames,
 							pathnameMapping,
 							async (segments: Content[]) => {
+								// Style is ignored for pathnames (only applies to segments)
 								const result = await translateSegments(
 									segments,
 									sourceLang,
 									targetLang,
 									GOOGLE_PROJECT_ID(),
 									OPENROUTER_API_KEY(),
-									hostConfig.skipWords
+									hostConfig.skipWords,
+									'balanced'
 								)
 								return result.translations
 							},

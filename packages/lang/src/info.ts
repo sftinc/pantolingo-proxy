@@ -3,7 +3,7 @@
  * Falls back to englishName from LANGUAGE_DATA when Intl returns code unchanged.
  */
 
-import { LANGUAGE_DATA, LEGACY_CODE_MAP, type LanguageData } from './data.js'
+import { LANGUAGE_DATA, type LanguageData } from './data.js'
 
 export interface LanguageInfo {
 	code: string
@@ -17,25 +17,13 @@ export interface LanguageInfo {
 const languageMap = new Map<string, LanguageData>(LANGUAGE_DATA.map((lang) => [lang.code, lang]))
 
 /**
- * Normalize a language code to BCP 47 format.
- * Handles legacy ISO 639-1 codes via LEGACY_CODE_MAP.
+ * Normalize a language code to BCP 47 format (lowercase).
  *
  * @param code - Any supported language code
  * @returns Normalized BCP 47 code (lowercase)
  */
 export function normalizeLangCode(code: string): string {
-	const lower = code.toLowerCase()
-	return LEGACY_CODE_MAP[lower] ?? lower
-}
-
-/**
- * Check if a code is a legacy (deprecated) format.
- *
- * @param code - Language code to check
- * @returns true if code is in LEGACY_CODE_MAP
- */
-export function isLegacyCode(code: string): boolean {
-	return code.toLowerCase() in LEGACY_CODE_MAP
+	return code.toLowerCase()
 }
 
 /**

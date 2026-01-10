@@ -6,16 +6,17 @@
 import { Content, SkipWordReplacement, TranslateStats, TranslationItem } from '../types.js'
 import { reconstructTranslations, preprocessForTranslation } from './deduplicator.js'
 import { replaceSkipWords, restoreSkipWords } from './skip-words.js'
-import { translateBatch } from './translate.js'
+import { translateBatch, TranslationStyle } from './translate.js'
 
 /**
- * Translate content items using Google Cloud Translation API REST
+ * Translate content items using OpenRouter API
  * @param segments - Array of Content objects to translate
- * @param sourceLanguageCode - Source language code (e.g., 'en')
- * @param targetLanguageCode - Target language code (e.g., 'es', 'fr')
- * @param projectId - Google Cloud project ID
- * @param serviceAccountJson - Service account JSON string
+ * @param sourceLanguageCode - Source language BCP 47 code (e.g., 'en-us')
+ * @param targetLanguageCode - Target language BCP 47 code (e.g., 'es-mx', 'fr-fr')
+ * @param projectId - Unused (kept for backward compatibility)
+ * @param serviceAccountJson - OpenRouter API key
  * @param skipWords - Optional array of words to skip during translation
+ * @param style - Translation style (only applies to segments, not pathnames)
  * @returns TranslateStats with translations aligned to original content
  */
 export async function translateSegments(
@@ -24,7 +25,8 @@ export async function translateSegments(
 	targetLanguageCode: string,
 	projectId: string,
 	serviceAccountJson: string,
-	skipWords?: string[]
+	skipWords?: string[],
+	style: TranslationStyle = 'balanced'
 ): Promise<TranslateStats> {
 	if (segments.length === 0) {
 		return {
@@ -69,7 +71,8 @@ export async function translateSegments(
 			translationItems,
 			sourceLanguageCode,
 			targetLanguageCode,
-			serviceAccountJson
+			serviceAccountJson,
+			style
 		)
 
 		// Restore skip words in translations

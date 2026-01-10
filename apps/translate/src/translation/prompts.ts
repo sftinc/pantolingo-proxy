@@ -64,17 +64,17 @@ export const PATHNAME_PROMPT = `You are a URL pathname translator. Translate ONL
 - Prefer clarity and familiarity over creativity
 
 ## INPUT VARIABLES XML
-- sourceLanguageCode (example: "en")
-- targetLanguageCode (example: "de")
-- text (a single string beginning with "/"; this is the pathname)
+- sourceLanguageCode: BCP 47 regional code (example: "en-us")
+- targetLanguageCode: BCP 47 regional code (example: "es-mx", "de-de")
+- text: A single string beginning with "/" (the pathname)
 
 ## EXAMPLES
 
 Example 1 (Italian)
 Input:
 <translate>
-  <sourceLanguageCode>en</sourceLanguageCode>
-  <targetLanguageCode>it</targetLanguageCode>
+  <sourceLanguageCode>en-us</sourceLanguageCode>
+  <targetLanguageCode>it-it</targetLanguageCode>
   <text>/help/article/[N1]-update-email-address</text>
 </translate>
 Output:
@@ -83,8 +83,8 @@ Output:
 Example 2 (Spanish)
 Input:
 <translate>
-  <sourceLanguageCode>en</sourceLanguageCode>
-  <targetLanguageCode>es</targetLanguageCode>
+  <sourceLanguageCode>en-us</sourceLanguageCode>
+  <targetLanguageCode>es-mx</targetLanguageCode>
   <text>/account/help</text>
 </translate>
 Output:
@@ -93,8 +93,8 @@ Output:
 Example 3 (French)
 Input:
 <translate>
-  <sourceLanguageCode>en</sourceLanguageCode>
-  <targetLanguageCode>fr</targetLanguageCode>
+  <sourceLanguageCode>en-us</sourceLanguageCode>
+  <targetLanguageCode>fr-fr</targetLanguageCode>
   <text>/help/article/[S1]-what-is-an-ebay-bid-increment</text>
 </translate>
 Output:
@@ -103,8 +103,8 @@ Output:
 Example 4 (German - auth route: login)
 Input:
 <translate>
-  <sourceLanguageCode>en</sourceLanguageCode>
-  <targetLanguageCode>de</targetLanguageCode>
+  <sourceLanguageCode>en-us</sourceLanguageCode>
+  <targetLanguageCode>de-de</targetLanguageCode>
   <text>/login</text>
 </translate>
 Output:
@@ -113,8 +113,8 @@ Output:
 Example 5 (German - auth route: signup)
 Input:
 <translate>
-  <sourceLanguageCode>en</sourceLanguageCode>
-  <targetLanguageCode>de</targetLanguageCode>
+  <sourceLanguageCode>en-us</sourceLanguageCode>
+  <targetLanguageCode>de-de</targetLanguageCode>
   <text>/signup</text>
 </translate>
 Output:
@@ -182,82 +182,158 @@ export const SEGMENT_PROMPT = `You are a website text translator. Translate the 
 - If a short UI label is ambiguous, choose the most standard neutral UI translation in the target language
 - Prefer clarity and familiar UX wording over literal translations
 
+9) Translation style
+- The "style" parameter controls how closely the translation follows the source structure:
+
+  LITERAL:
+  - Word-for-word translation preserving source sentence structure
+  - Use formal register (usted/Sie/vous)
+  - Maintain source punctuation and phrasing patterns
+  - Prioritize accuracy over fluency
+  - Example: "Your item has been added to cart" → "Su artículo ha sido añadido al carrito"
+
+  BALANCED (default):
+  - Accurate translation with natural phrasing
+  - Match the formality level of the source text
+  - Allow minor restructuring for clarity
+  - Balance accuracy and readability
+  - Example: "Your item has been added to cart" → "Tu artículo se agregó al carrito"
+
+  NATURAL:
+  - Fluent, idiomatic translation prioritizing native feel
+  - Use informal register (tú/du/tu) unless context demands formality
+  - Restructure freely for natural flow in target language
+  - Prioritize how a native speaker would express the same idea
+  - Example: "Your item has been added to cart" → "Agregamos el artículo a tu carrito"
+
 ## INPUT VARIABLES XML
-- sourceLanguageCode (example: "en")
-- targetLanguageCode (example: "de")
-- text (a single text string from a web page)
+- sourceLanguageCode: BCP 47 regional code (example: "en-us")
+- targetLanguageCode: BCP 47 regional code (example: "es-mx", "de-de")
+- style: Translation style - "literal", "balanced", or "natural" (default: "balanced")
+- text: A single text string from a web page
 
 ## EXAMPLES
 
-Example 1
+Example 1 (balanced - default)
 Input:
 <translate>
-  <sourceLanguageCode>en</sourceLanguageCode>
-  <targetLanguageCode>es</targetLanguageCode>
+  <sourceLanguageCode>en-us</sourceLanguageCode>
+  <targetLanguageCode>es-mx</targetLanguageCode>
+  <style>balanced</style>
   <text>Item Price [N1] USD</text>
 </translate>
 Output:
 Precio del artículo [N1] USD
 
-Example 2
+Example 2 (balanced - preserves HTML entity)
 Input:
 <translate>
-  <sourceLanguageCode>en</sourceLanguageCode>
-  <targetLanguageCode>fr</targetLanguageCode>
+  <sourceLanguageCode>en-us</sourceLanguageCode>
+  <targetLanguageCode>fr-fr</targetLanguageCode>
+  <style>balanced</style>
   <text>Update email address&nbsp;</text>
 </translate>
 Output:
 Mettre à jour l'adresse e-mail&nbsp;
 
-Example 3
+Example 3 (balanced - preserves ALL CAPS)
 Input:
 <translate>
-  <sourceLanguageCode>en</sourceLanguageCode>
-  <targetLanguageCode>it</targetLanguageCode>
+  <sourceLanguageCode>en-us</sourceLanguageCode>
+  <targetLanguageCode>it-it</targetLanguageCode>
+  <style>balanced</style>
   <text>WHAT IS AN eBAY BID INCREMENT?</text>
 </translate>
 Output:
 CHE COS'È UN INCREMENTO DI OFFERTA SU eBAY?
 
-Example 4 (Login)
+Example 4 (balanced - Login)
 Input:
 <translate>
-  <sourceLanguageCode>en</sourceLanguageCode>
-  <targetLanguageCode>de</targetLanguageCode>
+  <sourceLanguageCode>en-us</sourceLanguageCode>
+  <targetLanguageCode>de-de</targetLanguageCode>
+  <style>balanced</style>
   <text>Log in</text>
 </translate>
 Output:
 Anmelden
 
-Example 5 (Sign Up)
+Example 5 (balanced - Sign Up)
 Input:
 <translate>
-  <sourceLanguageCode>en</sourceLanguageCode>
-  <targetLanguageCode>de</targetLanguageCode>
+  <sourceLanguageCode>en-us</sourceLanguageCode>
+  <targetLanguageCode>de-de</targetLanguageCode>
+  <style>balanced</style>
   <text>Sign up</text>
 </translate>
 Output:
 Registrieren
 
-Example 6 (HTML placeholders - paired)
+Example 6 (balanced - paired HTML placeholders)
 Input:
 <translate>
-  <sourceLanguageCode>en</sourceLanguageCode>
-  <targetLanguageCode>es</targetLanguageCode>
+  <sourceLanguageCode>en-us</sourceLanguageCode>
+  <targetLanguageCode>es-mx</targetLanguageCode>
+  <style>balanced</style>
   <text>Click [HA1]here[/HA1] to [HB1]confirm[/HB1] your order</text>
 </translate>
 Output:
 Haz clic [HA1]aquí[/HA1] para [HB1]confirmar[/HB1] tu pedido
 
-Example 7 (HTML placeholders - with line break)
+Example 7 (balanced - void placeholder for line break)
 Input:
 <translate>
-  <sourceLanguageCode>en</sourceLanguageCode>
-  <targetLanguageCode>fr</targetLanguageCode>
+  <sourceLanguageCode>en-us</sourceLanguageCode>
+  <targetLanguageCode>fr-fr</targetLanguageCode>
+  <style>balanced</style>
   <text>Welcome back![HV1]Please log in to continue.</text>
 </translate>
 Output:
 Bon retour![HV1]Veuillez vous connecter pour continuer.
+
+Example 8 (literal style - formal, word-for-word)
+Input:
+<translate>
+  <sourceLanguageCode>en-us</sourceLanguageCode>
+  <targetLanguageCode>es-mx</targetLanguageCode>
+  <style>literal</style>
+  <text>Your item has been added to cart</text>
+</translate>
+Output:
+Su artículo ha sido añadido al carrito
+
+Example 9 (natural style - conversational, idiomatic)
+Input:
+<translate>
+  <sourceLanguageCode>en-us</sourceLanguageCode>
+  <targetLanguageCode>es-mx</targetLanguageCode>
+  <style>natural</style>
+  <text>Your item has been added to cart</text>
+</translate>
+Output:
+Agregamos el artículo a tu carrito
+
+Example 10 (literal - regional es-ES)
+Input:
+<translate>
+  <sourceLanguageCode>en-us</sourceLanguageCode>
+  <targetLanguageCode>es-es</targetLanguageCode>
+  <style>literal</style>
+  <text>Your item has been added to cart</text>
+</translate>
+Output:
+Su artículo ha sido añadido a la cesta
+
+Example 11 (natural - regional es-ES)
+Input:
+<translate>
+  <sourceLanguageCode>en-us</sourceLanguageCode>
+  <targetLanguageCode>es-es</targetLanguageCode>
+  <style>natural</style>
+  <text>Your item has been added to cart</text>
+</translate>
+Output:
+Hemos añadido el artículo a tu cesta
 
 ### OUTPUT ONLY
 

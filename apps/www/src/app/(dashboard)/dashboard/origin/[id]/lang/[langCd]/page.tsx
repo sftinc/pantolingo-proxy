@@ -64,7 +64,7 @@ export default async function LangDetailPage({ params, searchParams }: LangDetai
 						label: `${origin.domain} ${getFlag(origin.originLang)}`,
 						href: `/dashboard/origin/${originId}`,
 					},
-					{ label: getLanguageLabel(langCd) },
+					{ label: `${getLanguageLabel(langCd)} (${formatNumber(data.total)})` },
 				]}
 			/>
 
@@ -88,9 +88,6 @@ export default async function LangDetailPage({ params, searchParams }: LangDetai
 					baseUrl={`/dashboard/origin/${originId}/lang/${langCd}?view=${validView}`}
 					paramName="filter"
 				/>
-				<span className="text-sm text-[var(--text-muted)]">
-					{formatNumber(data.total)} {validView}
-				</span>
 			</div>
 
 			{/* Empty state message */}

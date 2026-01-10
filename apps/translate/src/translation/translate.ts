@@ -10,6 +10,8 @@ export interface TranslationItem {
 	type: 'segment' | 'pathname'
 }
 
+export type TranslationStyle = 'literal' | 'balanced' | 'natural'
+
 const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions'
 const MODEL = 'anthropic/claude-haiku-4.5'
 
@@ -17,9 +19,10 @@ const MODEL = 'anthropic/claude-haiku-4.5'
  * Translate a single item using OpenRouter API
  * @param text - Text to translate
  * @param type - Translation type ('segment' or 'pathname')
- * @param sourceLanguageCode - Source language (e.g., 'en')
- * @param targetLanguageCode - Target language (e.g., 'es', 'fr')
+ * @param sourceLanguageCode - Source language BCP 47 code (e.g., 'en-us')
+ * @param targetLanguageCode - Target language BCP 47 code (e.g., 'es-mx', 'fr-fr')
  * @param apiKey - OpenRouter API key
+ * @param style - Translation style (only applies to segments, not pathnames)
  * @returns Translated text
  */
 async function translateSingle(
@@ -27,10 +30,14 @@ async function translateSingle(
 	type: 'segment' | 'pathname',
 	sourceLanguageCode: string,
 	targetLanguageCode: string,
-	apiKey: string
+	apiKey: string,
+	style: TranslationStyle = 'balanced'
 ): Promise<string> {
 	const prompt = type === 'segment' ? SEGMENT_PROMPT : PATHNAME_PROMPT
 	const startTime = Date.now()
+
+	// Include <style> tag only for segments, not pathnames
+	const styleTag = type === 'segment' ? `<style>${style}</style>` : ''
 
 	// console.log(`[Translation Single] Type: ${type}, Input: "${text.substring(0, 100)}${text.length > 100 ? '...' : ''}"`)
 
@@ -56,6 +63,7 @@ async function translateSingle(
                         <translate>
                             <sourceLanguageCode>${sourceLanguageCode}</sourceLanguageCode>
                             <targetLanguageCode>${targetLanguageCode}</targetLanguageCode>
+                            ${styleTag}
                             <text>${text}</text>
                         </translate>`,
 					},
@@ -95,16 +103,18 @@ async function translateSingle(
  * Translate a batch of items in parallel
  * All items are processed simultaneously
  * @param items - Array of translation items with type discrimination
- * @param sourceLanguageCode - Source language (e.g., 'en')
- * @param targetLanguageCode - Target language (e.g., 'es', 'fr')
+ * @param sourceLanguageCode - Source language BCP 47 code (e.g., 'en-us')
+ * @param targetLanguageCode - Target language BCP 47 code (e.g., 'es-mx', 'fr-fr')
  * @param apiKey - OpenRouter API key
+ * @param style - Translation style (only applies to segments, not pathnames)
  * @returns Array of translated strings in same order as input
  */
 export async function translateBatch(
 	items: TranslationItem[],
 	sourceLanguageCode: string,
 	targetLanguageCode: string,
-	apiKey: string
+	apiKey: string,
+	style: TranslationStyle = 'balanced'
 ): Promise<string[]> {
 	const startTime = Date.now()
 
@@ -116,7 +126,7 @@ export async function translateBatch(
 
 	// Translate all items in parallel (1 API call per item)
 	const translationPromises = items.map((item) =>
-		translateSingle(item.text, item.type, sourceLanguageCode, targetLanguageCode, apiKey)
+		translateSingle(item.text, item.type, sourceLanguageCode, targetLanguageCode, apiKey, style)
 	)
 
 	const results = await Promise.all(translationPromises)
@@ -127,28 +137,3 @@ export async function translateBatch(
 	return results
 }
 
-/**
- * Translate multiple strings using parallel API calls
- * Backward compatibility wrapper for existing code
- *
- * @param strings - Array of strings to translate
- * @param projectId - IGNORED (kept for backward compatibility)
- * @param sourceLanguageCode - Source language (e.g., 'en')
- * @param targetLanguageCode - Target language (e.g., 'es', 'fr')
- * @param apiKey - OpenRouter API key (repurposed from serviceAccountJson parameter)
- * @returns Array of translated strings in same order
- */
-export async function translateStringsParallel(
-	strings: string[],
-	_projectId: string,
-	sourceLanguageCode: string,
-	targetLanguageCode: string,
-	apiKey: string
-): Promise<string[]> {
-	const items: TranslationItem[] = strings.map((text) => ({
-		text,
-		type: 'segment' as const,
-	}))
-
-	return translateBatch(items, sourceLanguageCode, targetLanguageCode, apiKey)
-}

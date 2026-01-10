@@ -11,17 +11,6 @@ export interface LanguageData {
 }
 
 /**
- * @deprecated Legacy codes mapped to default regional codes.
- * Used for display normalization only - does not affect database queries.
- * TODO: Remove after database migration.
- */
-export const LEGACY_CODE_MAP: Record<string, string> = {
-	en: 'en-us',
-	es: 'es-mx',
-	fr: 'fr-fr',
-}
-
-/**
  * All supported languages with regional BCP 47 codes.
  * Sorted alphabetically by code.
  */
