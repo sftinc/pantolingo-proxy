@@ -22,7 +22,6 @@ export {
 	type PathnameMapping,
 	type PathIds,
 } from './paths.js'
-export { type PatternType } from './types.js'
 export { recordPageView, updateSegmentLastUsed, updatePathLastUsed } from './views.js'
 export {
 	getOriginsWithStats,

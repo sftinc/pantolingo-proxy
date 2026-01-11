@@ -4,7 +4,6 @@
  */
 
 import { pool } from './pool.js'
-import type { PatternType } from './types.js'
 
 /**
  * Host configuration from database
@@ -18,7 +17,6 @@ export interface HostConfig {
 	sourceLang: string // origin.origin_lang
 	targetLang: string // host.target_lang
 	skipWords: string[]
-	skipPatterns: PatternType[]
 	skipPath: (string | RegExp)[]
 	translatePath: boolean
 	proxiedCache: number
@@ -48,16 +46,6 @@ function parseSkipPath(dbArray: string[] | null): (string | RegExp)[] {
 }
 
 /**
- * Parse skip_patterns array from database
- * Database stores: ['pii', 'numeric']
- * Returns: ['pii', 'numeric'] as PatternType[]
- */
-function parseSkipPatterns(dbArray: string[] | null): PatternType[] {
-	if (!dbArray || dbArray.length === 0) return []
-	return dbArray.filter((p) => p === 'pii' || p === 'numeric') as PatternType[]
-}
-
-/**
  * Get host configuration by hostname
  * Uses in-memory cache to avoid DB hit on every request
  *
@@ -80,7 +68,6 @@ export async function getHostConfig(hostname: string): Promise<HostConfig | null
 			origin_id: number
 			target_lang: string
 			skip_words: string[] | null
-			skip_patterns: string[] | null
 			skip_path: string[] | null
 			translate_path: boolean
 			proxied_cache: number
@@ -92,7 +79,6 @@ export async function getHostConfig(hostname: string): Promise<HostConfig | null
 				h.origin_id,
 				h.target_lang,
 				h.skip_words,
-				h.skip_patterns,
 				h.skip_path,
 				h.translate_path,
 				h.proxied_cache,
@@ -119,7 +105,6 @@ export async function getHostConfig(hostname: string): Promise<HostConfig | null
 			sourceLang: row.origin_lang,
 			targetLang: row.target_lang,
 			skipWords: row.skip_words || [],
-			skipPatterns: parseSkipPatterns(row.skip_patterns),
 			skipPath: parseSkipPath(row.skip_path),
 			translatePath: row.translate_path,
 			proxiedCache: row.proxied_cache,

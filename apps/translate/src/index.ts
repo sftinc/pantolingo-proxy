@@ -465,25 +465,12 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 			let newPaths = 0
 
 			if (extractedSegments.length > 0) {
-				// 6. Apply patterns to normalize text for caching
-				let patternData: PatternizedText[] = []
-				let normalizedSegments = extractedSegments
-
-				if (hostConfig.skipPatterns && hostConfig.skipPatterns.length > 0) {
-					patternData = extractedSegments.map((seg) => applyPatterns(seg.value, hostConfig.skipPatterns!))
-					// Replace segment values with normalized versions
-					normalizedSegments = extractedSegments.map((seg, i) => ({
-						...seg,
-						value: patternData[i].normalized,
-					}))
-				} else {
-					// No patterns - create pass-through pattern data
-					patternData = extractedSegments.map((seg) => ({
-						original: seg.value,
-						normalized: seg.value,
-						replacements: [],
-					}))
-				}
+				// 6. Apply patterns to normalize text for caching (PII redaction, numeric placeholders)
+				const patternData = extractedSegments.map((seg) => applyPatterns(seg.value))
+				const normalizedSegments = extractedSegments.map((seg, i) => ({
+					...seg,
+					value: patternData[i].normalized,
+				}))
 
 				// 7. Batch lookup translations from database
 				const segmentTexts = normalizedSegments.map((s) => s.value)

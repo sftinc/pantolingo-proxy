@@ -3,41 +3,7 @@
  * All values from MVP.md specification
  */
 
-import type { HostSettings, HtmlTagType } from './types.js'
-
-// Host to settings mapping (hardcoded for MVP)
-export const HOST_SETTINGS: Record<string, HostSettings> = {
-	'es.esnipe.com': {
-		origin: 'https://www.esnipe.com',
-		sourceLang: 'en',
-		targetLang: 'es',
-		skipWords: ['eSnipe', 'eBay'],
-		skipPatterns: ['pii', 'numeric'],
-		translatePath: true,
-		skipPath: [],
-		proxiedCache: 5, // Cache for 5 minutes
-	},
-	'fr.esnipe.com': {
-		origin: 'https://www.esnipe.com',
-		sourceLang: 'en',
-		targetLang: 'fr',
-		skipWords: ['eSnipe', 'eBay'],
-		skipPatterns: ['pii', 'numeric'],
-		translatePath: true,
-		skipPath: [],
-		proxiedCache: 10, // Cache for 10 minutes
-	},
-	localhost: {
-		origin: 'https://www.esnipe.com',
-		sourceLang: 'en',
-		targetLang: 'es',
-		skipWords: ['eSnipe', 'eBay'],
-		skipPatterns: ['pii', 'numeric'],
-		translatePath: true,
-		skipPath: ['/api/', /^\/admin/],
-		proxiedCache: 0, // No caching for development (use origin headers)
-	},
-}
+import type { HtmlTagType } from './types.js'
 
 // DOM traversal skip rules
 export const SKIP_SELECTORS = ['.translate-none', '.notranslate', '[notranslate]']

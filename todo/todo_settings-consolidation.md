@@ -17,33 +17,39 @@ Current settings on `host` are actually properties of the source site, not the t
 
 ---
 
-## Phase 1: Hardcode Skip Patterns (Code Only)
+## Phase 1: Hardcode Skip Patterns (Code Only) ✅
 
 **Goal:** Remove `skip_patterns` from configuration, always apply PII/numeric detection.
 
 **No database changes required.**
 
--   [ ] Update skip-patterns.ts to hardcode default patterns
--   [ ] Update index.ts to remove skipPatterns conditional
--   [ ] Update host.ts query and HostConfig type
--   [ ] Test translation still works
+-   [x] Update skip-patterns.ts to hardcode default patterns
+-   [x] Update index.ts to remove skipPatterns conditional
+-   [x] Update host.ts query and HostConfig type
+-   [x] Test translation still works
 -   [ ] Deploy
 
 ### Details
 
-1. **apps/translate/src/index.ts**
+1. **apps/translate/src/translation/skip-patterns.ts**
 
-    - Remove `hostConfig.skipPatterns` check
-    - Always apply patterns (hardcode `['pii', 'numeric']`)
+    - Removed `enabledPatterns` parameter from `applyPatterns()`
+    - Always applies both PII and numeric patterns
 
-2. **apps/translate/src/translation/skip-patterns.ts**
+2. **apps/translate/src/index.ts**
 
-    - Update to always use default patterns if none provided
-    - Or simplify API to not accept patterns parameter
+    - Removed conditional, now calls `applyPatterns(text)` directly
 
 3. **packages/db/src/host.ts**
-    - Stop querying `skip_patterns` column (can leave in DB for now)
-    - Remove from `HostConfig` type
+
+    - Removed `skipPatterns` from `HostConfig` type
+    - Removed `skip_patterns` from SQL query
+    - Removed `parseSkipPatterns()` function
+
+4. **Dead code cleanup**
+    - Removed `HOST_SETTINGS` from config.ts
+    - Removed `HostSettings` interface from types.ts
+    - Removed duplicate `PatternType` from packages/db
 
 ---
 
@@ -108,9 +114,6 @@ ALTER TABLE host DROP COLUMN translate_path;
 2. **apps/translate/src/index.ts**
 
     - No changes needed (still uses hostConfig.skipWords, etc.)
-
-3. **apps/translate/src/config.ts**
-    - Update `HOST_SETTINGS` fallback if still used
 
 ---
 

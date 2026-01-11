@@ -3,23 +3,9 @@
  */
 
 /**
- * Per-host configuration settings
- */
-export interface HostSettings {
-	origin: string // Origin server URL (e.g., 'https://www.esnipe.com')
-	sourceLang: string // Source language code (e.g., 'en')
-	targetLang: string // Target language code (e.g., 'es', 'fr', 'de')
-	skipWords?: string[] // Words that should never be translated (e.g., product names)
-	skipPatterns?: PatternType[] // Pattern types to normalize (e.g., ['numeric'] for numbers)
-	translatePath?: boolean // Whether to translate path names (e.g., /products → /productos)
-	skipPath?: (string | RegExp)[] // Path patterns to skip translation (e.g., ['/api/', /^\/admin/])
-	proxiedCache?: number // Cache duration in minutes for proxied resources (0 = no caching, default: 0)
-}
-
-/**
  * Pattern type for text normalization during translation
  */
-export type PatternType = 'numeric' | 'pii' // Future: 'date' | 'time' | 'currency'
+export type PatternType = 'numeric' | 'pii'
 
 /**
  * Represents a pattern replacement (original values → placeholders)

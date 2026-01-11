@@ -14,7 +14,7 @@
  * Each pattern type uses a unique placeholder for regex-based restoration.
  */
 
-import type { PatternType, PatternReplacement, PatternizedText } from '../types.js'
+import type { PatternReplacement, PatternizedText } from '../types.js'
 
 // Regex for numeric pattern: matches numbers with commas and decimals
 // Requires at least one digit to avoid false matches on pure punctuation like "..."
@@ -50,64 +50,44 @@ function applyCaseFormat(text: string, isUpperCase: boolean): string {
 
 /**
  * Apply pattern replacements to text
- * Replaces numbers like "123.00" with indexed placeholders "[N1]", "[N2]", etc.
+ * Replaces emails with [P1], [P2] and numbers with [N1], [N2], etc.
  *
  * @param text - The text to normalize
- * @param enabledPatterns - Array of patterns to apply
  * @returns PatternizedText with original, normalized text, and replacement data
  */
-export function applyPatterns(
-	text: string,
-	enabledPatterns: PatternType[]
-): PatternizedText {
-	// Detect if text is all uppercase
+export function applyPatterns(text: string): PatternizedText {
 	const isUpperCase = isAllUpperCase(text)
-
-	if (!enabledPatterns || enabledPatterns.length === 0) {
-		return { original: text, normalized: text, replacements: [], isUpperCase }
-	}
-
 	const replacements: PatternReplacement[] = []
 	let normalized = text
 
 	// Process PII pattern (emails) - Must run BEFORE numeric to prevent user123@example.com → user[N1]@example.com
-	if (enabledPatterns.includes('pii')) {
-		const values: string[] = []
-		let index = 1
-
-		// Replace each email with indexed placeholder
-		normalized = normalized.replace(EMAIL_PATTERN, (match) => {
-			values.push(match)
-			return `[P${index++}]`
+	const piiValues: string[] = []
+	let piiIndex = 1
+	normalized = normalized.replace(EMAIL_PATTERN, (match) => {
+		piiValues.push(match)
+		return `[P${piiIndex++}]`
+	})
+	if (piiValues.length > 0) {
+		replacements.push({
+			pattern: 'pii',
+			placeholder: PII_PLACEHOLDER_PREFIX,
+			values: piiValues,
 		})
-
-		if (values.length > 0) {
-			replacements.push({
-				pattern: 'pii',
-				placeholder: PII_PLACEHOLDER_PREFIX,
-				values,
-			})
-		}
 	}
 
 	// Process numeric pattern
-	if (enabledPatterns.includes('numeric')) {
-		const values: string[] = []
-		let index = 1
-
-		// Replace each match with indexed placeholder
-		normalized = normalized.replace(NUMERIC_PATTERN, (match) => {
-			values.push(match)
-			return `[N${index++}]`
+	const numericValues: string[] = []
+	let numericIndex = 1
+	normalized = normalized.replace(NUMERIC_PATTERN, (match) => {
+		numericValues.push(match)
+		return `[N${numericIndex++}]`
+	})
+	if (numericValues.length > 0) {
+		replacements.push({
+			pattern: 'numeric',
+			placeholder: NUMERIC_PLACEHOLDER_PREFIX,
+			values: numericValues,
 		})
-
-		if (values.length > 0) {
-			replacements.push({
-				pattern: 'numeric',
-				placeholder: NUMERIC_PLACEHOLDER_PREFIX, // Stores prefix for future use
-				values,
-			})
-		}
 	}
 
 	return { original: text, normalized, replacements, isUpperCase }

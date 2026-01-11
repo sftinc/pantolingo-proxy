@@ -18,9 +18,8 @@ export function normalizePathname(pathname: string): {
 	normalized: string
 	replacements: PatternReplacement[]
 } {
-	// Apply numeric pattern normalization (same as text)
-	// Pathnames typically only use numeric patterns, not PII
-	const patternized = applyPatterns(pathname, ['numeric'])
+	// Apply pattern normalization (numeric and PII)
+	const patternized = applyPatterns(pathname)
 
 	return {
 		normalized: patternized.normalized,
