@@ -9,6 +9,13 @@ interface HreflangEntry {
 }
 
 /**
+ * Extract language code from BCP 47 regional code (e.g., "es-mx" → "es")
+ */
+function getLangCode(bcp47: string): string {
+	return bcp47.split('-')[0]
+}
+
+/**
  * Update HTML lang attribute to target language
  */
 function updateHtmlLang(document: any, targetLang: string): boolean {
@@ -22,8 +29,9 @@ function updateHtmlLang(document: any, targetLang: string): boolean {
 	const currentLang = htmlElement.getAttribute('lang')
 
 	// Only update if missing or incorrect
-	if (!currentLang || currentLang !== targetLang) {
-		htmlElement.setAttribute('lang', targetLang)
+	const langCode = getLangCode(targetLang)
+	if (!currentLang || currentLang !== langCode) {
+		htmlElement.setAttribute('lang', langCode)
 		return true
 	}
 
@@ -77,13 +85,13 @@ function buildHreflangEntries(
 
 	// Entry 2: Origin language
 	entries.push({
-		hreflang: sourceLang,
+		hreflang: getLangCode(sourceLang),
 		href: `${originProtocol}//${originHostname}${originalPathname}${queryString}`,
 	})
 
 	// Entry 3: Current translated language (use original pathname for consistency)
 	entries.push({
-		hreflang: targetLang,
+		hreflang: getLangCode(targetLang),
 		href: `${currentProtocol}//${currentHost}${originalPathname}${queryString}`,
 	})
 
