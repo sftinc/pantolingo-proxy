@@ -114,8 +114,8 @@ ALTER TABLE host DROP COLUMN translate_path;
 -   [x] Update getHostConfig() query to read from origin
 -   [x] Update query type (translate_path nullable)
 -   [x] Test with migrated data (build passes)
--   [ ] Deploy code changes
--   [ ] Run migration Step 3 (drop old columns)
+-   [x] Deploy code changes
+-   [x] Run migration Step 3 (drop old columns)
 
 ### Details
 
@@ -136,7 +136,6 @@ ALTER TABLE host DROP COLUMN translate_path;
 **Goal:** Move settings editing from host to origin in dashboard.
 
 -   [ ] Update origin settings UI
--   [ ] Remove fields from host settings UI
 -   [ ] Test end-to-end
 
 ### Details
@@ -146,9 +145,6 @@ ALTER TABLE host DROP COLUMN translate_path;
     - Add skip_words editor
     - Add skip_path editor
     - Add translate_path toggle
-
-2. **apps/www** - Host settings
-    - Remove skip_words, skip_path, translate_path fields
 
 ---
 
