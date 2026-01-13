@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { signIn } from '@/lib/auth'
 import { FormInput } from '@/components/ui/FormInput'
 import { SubmitButton } from '@/components/ui/SubmitButton'
@@ -24,8 +25,10 @@ export default async function LoginPage({
 		const email = formData.get('email') as string
 		await signIn('smtp', {
 			email,
+			redirect: false,
 			redirectTo: safeCallbackUrl,
 		})
+		redirect('/login/check-email')
 	}
 
 	return (

@@ -6,28 +6,49 @@ Next.js 16 app with Tailwind CSS v4 and React 19.
 
 -   `/` - Marketing landing page
 -   `/login`, `/signup` - Auth pages
+-   `/login/magic` - Magic link verification (redirects to `/api/auth/callback/smtp`)
+-   `/login/check-email` - "Check your email" confirmation page
+-   `/onboarding` - Name setup for new users
 -   `/dashboard` - Origins overview with segment/path counts
 -   `/dashboard/origin/[id]` - Language list for an origin
 -   `/dashboard/origin/[id]/lang/[langCd]` - Translation editor for segments and paths
+
+## Clean URLs
+
+**Never expose `/api` routes to users.** User-facing URLs use clean paths:
+
+| User-Facing URL | Internal Route | Method |
+| --------------- | -------------- | ------ |
+| `/login/magic` | `/api/auth/callback/smtp` | Route redirect |
+| `/login/check-email` | N/A | Custom page |
 
 ## Directory Structure
 
 ```
 src/
 ├── app/
-│   ├── (marketing)/        # Public pages (/)
-│   ├── (auth)/             # Auth pages (/login, /signup)
-│   └── (dashboard)/        # Customer dashboard
-│       └── dashboard/
-│           ├── page.tsx                        # /dashboard - origins overview
-│           └── origin/[id]/
-│               ├── page.tsx                    # /dashboard/origin/:id - language list
-│               └── lang/[langCd]/page.tsx      # /dashboard/origin/:id/lang/:langCd - translations
-├── actions/                # Server actions
+│   ├── (marketing)/            # Public pages (/)
+│   ├── (auth)/                 # Auth pages
+│   │   ├── login/              # /login - email input
+│   │   │   ├── check-email/    # /login/check-email - "check your email"
+│   │   │   └── error/          # /login/error - auth errors
+│   │   ├── signup/             # /signup
+│   │   └── onboarding/         # /onboarding - name setup
+│   ├── (dashboard)/            # Customer dashboard
+│   │   └── dashboard/
+│   │       ├── page.tsx                        # /dashboard - origins overview
+│   │       └── origin/[id]/
+│   │           ├── page.tsx                    # /dashboard/origin/:id - language list
+│   │           └── lang/[langCd]/page.tsx      # /dashboard/origin/:id/lang/:langCd - translations
+│   ├── api/
+│   │   └── auth/[...nextauth]/ # NextAuth API routes
+│   └── healthz/                # Health check endpoint
+├── actions/                    # Server actions
 ├── components/
-│   ├── ui/                 # Reusable UI (Modal, Table, Badge, Lexical editor)
-│   └── dashboard/          # Dashboard-specific (EditModal, LangTable, OriginCard)
-└── lib/                    # Utilities
+│   ├── ui/                     # Reusable UI (Modal, Table, Badge, Lexical editor)
+│   └── dashboard/              # Dashboard-specific (EditModal, LangTable, OriginCard)
+├── lib/                        # Utilities (auth, db queries)
+└── types/                      # TypeScript type extensions
 ```
 
 ## Key Components
@@ -38,10 +59,16 @@ src/
 
 ## Environment Variables
 
-| Variable                | Default | Description                                         |
-| ----------------------- | ------- | --------------------------------------------------- |
-| `POSTGRES_DB_URL`       | -       | PostgreSQL connection string (required)             |
-| `DASHBOARD_ALLOWED_IPS` | -       | Comma-separated IP allowlist for dashboard access   |
+| Variable                | Default | Description                                       |
+| ----------------------- | ------- | ------------------------------------------------- |
+| `POSTGRES_DB_URL`       | -       | PostgreSQL connection string (required)           |
+| `AUTH_SECRET`           | -       | NextAuth secret - generate with `openssl rand -base64 32` (required) |
+| `SMTP_HOST`             | -       | SMTP server hostname (required)                   |
+| `SMTP_USER`             | -       | SMTP username (required)                          |
+| `SMTP_PASSWORD`         | -       | SMTP password (required)                          |
+| `SMTP_FROM`             | -       | Email sender address, e.g. `noreply@pantolingo.com` (required) |
+| `SMTP_PORT`             | 587     | SMTP port                                         |
+| `SMTP_SECURE`           | false   | Use implicit TLS (true for port 465)              |
 
 ## Deployment (Render.com)
 

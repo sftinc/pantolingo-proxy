@@ -14,7 +14,7 @@ const authConfig = {
 	},
 	pages: {
 		signIn: '/login',
-		verifyRequest: '/login/verify',
+		verifyRequest: '/login/check-email',
 		error: '/login/error',
 	},
 	callbacks: {

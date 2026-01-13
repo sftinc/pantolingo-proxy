@@ -17,11 +17,27 @@ export function SmtpProvider(): EmailConfig {
 				throw new Error('SMTP_FROM environment variable is required for magic link authentication')
 			}
 
+			// Transform URL to use clean path and relative callbackUrl
+			// From: /api/auth/callback/smtp?callbackUrl=https://domain.com/dashboard&token=xxx
+			// To:   /login/magic?callbackUrl=/dashboard&token=xxx
+			const parsed = new URL(url)
+			parsed.pathname = '/login/magic'
+			const callbackUrl = parsed.searchParams.get('callbackUrl')
+			if (callbackUrl) {
+				try {
+					const callbackParsed = new URL(callbackUrl)
+					parsed.searchParams.set('callbackUrl', callbackParsed.pathname)
+				} catch {
+					// Already relative, leave as-is
+				}
+			}
+			const magicLinkUrl = parsed.toString()
+
 			const result = await sendEmail({
 				from: emailFrom,
 				to: identifier,
 				subject: 'Sign in to Pantolingo',
-				text: `Click to sign in to Pantolingo:\n\n${url}\n\nThis link expires in 1 hour.`,
+				text: `Click to sign in to Pantolingo:\n\n${magicLinkUrl}\n\nThis link expires in 1 hour.`,
 				html: `
 <!DOCTYPE html>
 <html>
@@ -35,7 +51,7 @@ export function SmtpProvider(): EmailConfig {
     <p style="margin: 0 0 24px; color: #666; line-height: 1.5;">
       Click the button below to sign in to your account.
     </p>
-    <a href="${url}" style="display: inline-block; background: #0070f3; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500;">
+    <a href="${magicLinkUrl}" style="display: inline-block; background: #0070f3; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500;">
       Sign in
     </a>
     <p style="margin: 24px 0 0; font-size: 14px; color: #999;">
