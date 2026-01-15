@@ -3,7 +3,9 @@
 .env.local
 *.local
 .claude
+.mcp.json
 .env
+generated_images/
 
 # Dependencies
 node_modules/

@@ -3,17 +3,18 @@
 import { auth } from '@/lib/auth'
 import { pool } from '@pantolingo/db/pool'
 import { redirect } from 'next/navigation'
+import { validatePassword, hashPassword } from '@/lib/password'
 
-const MAX_NAME_LENGTH = 100
+const MAX_NAME_LENGTH = 50
 
 export type AccountActionState = { error?: string } | null
 
 /**
- * Update the current user's account name
+ * Complete onboarding by setting name and password
  * Signature is compatible with useActionState: (prevState, formData) => Promise<state>
  * On success, redirects to /dashboard (throws, never returns)
  */
-export async function updateAccountName(
+export async function completeOnboarding(
 	_prevState: AccountActionState,
 	formData: FormData
 ): Promise<AccountActionState> {
@@ -22,6 +23,7 @@ export async function updateAccountName(
 		return { error: 'Unauthorized' }
 	}
 
+	// Validate name
 	const name = formData.get('name')
 	if (typeof name !== 'string') {
 		return { error: 'Name is required' }
@@ -36,14 +38,34 @@ export async function updateAccountName(
 		return { error: `Name must be ${MAX_NAME_LENGTH} characters or less` }
 	}
 
+	// Validate password
+	const password = formData.get('password')
+	const confirmPassword = formData.get('confirmPassword')
+
+	if (typeof password !== 'string' || !password) {
+		return { error: 'Password is required' }
+	}
+
+	if (password !== confirmPassword) {
+		return { error: 'Passwords do not match' }
+	}
+
+	const passwordError = validatePassword(password)
+	if (passwordError) {
+		return { error: passwordError }
+	}
+
+	// Hash password and update account
+	const passwordHash = await hashPassword(password)
+
 	try {
-		await pool.query(`UPDATE account SET name = $1, updated_at = NOW() WHERE id = $2`, [
-			trimmedName,
-			session.user.accountId,
-		])
+		await pool.query(
+			`UPDATE account SET name = $1, password_hash = $2, updated_at = NOW() WHERE id = $3`,
+			[trimmedName, passwordHash, session.user.accountId]
+		)
 	} catch (error) {
-		console.error('Failed to update account name:', error)
-		return { error: 'Failed to update account' }
+		console.error('Failed to complete onboarding:', error)
+		return { error: 'Failed to save account' }
 	}
 
 	redirect('/dashboard')

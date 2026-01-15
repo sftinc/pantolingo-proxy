@@ -10,34 +10,25 @@ export function SmtpProvider(): EmailConfig {
 		id: 'smtp',
 		type: 'email',
 		name: 'Email',
-		maxAge: 60 * 60, // Magic link expires in 1 hour
+		maxAge: 30 * 60, // Magic link expires in 30 minutes
 		async sendVerificationRequest({ identifier, url }) {
 			const emailFrom = process.env.SMTP_FROM
 			if (!emailFrom) {
 				throw new Error('SMTP_FROM environment variable is required for magic link authentication')
 			}
 
-			// Transform URL to use clean path and relative callbackUrl
+			// Simplify URL to just include token
 			// From: /api/auth/callback/smtp?callbackUrl=https://domain.com/dashboard&token=xxx
-			// To:   /login/magic?callbackUrl=/dashboard&token=xxx
+			// To:   /login/magic?token=xxx
 			const parsed = new URL(url)
-			parsed.pathname = '/login/magic'
-			const callbackUrl = parsed.searchParams.get('callbackUrl')
-			if (callbackUrl) {
-				try {
-					const callbackParsed = new URL(callbackUrl)
-					parsed.searchParams.set('callbackUrl', callbackParsed.pathname)
-				} catch {
-					// Already relative, leave as-is
-				}
-			}
-			const magicLinkUrl = parsed.toString()
+			const token = parsed.searchParams.get('token')
+			const magicLinkUrl = `${parsed.origin}/login/magic?token=${token}`
 
 			const result = await sendEmail({
 				from: emailFrom,
 				to: identifier,
 				subject: 'Sign in to Pantolingo',
-				text: `Click to sign in to Pantolingo:\n\n${magicLinkUrl}\n\nThis link expires in 1 hour.`,
+				text: `Click to sign in to Pantolingo:\n\n${magicLinkUrl}\n\nThis link expires in 30 minutes.`,
 				html: `
 <!DOCTYPE html>
 <html>
@@ -55,7 +46,7 @@ export function SmtpProvider(): EmailConfig {
       Sign in
     </a>
     <p style="margin: 24px 0 0; font-size: 14px; color: #999;">
-      This link expires in 1 hour. If you didn't request this email, you can safely ignore it.
+      This link expires in 30 minutes. If you didn't request this email, you can safely ignore it.
     </p>
   </div>
 </body>

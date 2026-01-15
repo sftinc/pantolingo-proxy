@@ -8,6 +8,30 @@ interface AccountRow {
 	verified_at: Date | null
 }
 
+interface AccountWithPasswordRow extends AccountRow {
+	password_hash: string | null
+}
+
+/**
+ * Get user by email with password_hash for credentials auth
+ */
+export async function getUserByEmailWithPassword(email: string) {
+	const result = await pool.query<AccountWithPasswordRow>(
+		`SELECT id, email, name, verified_at, password_hash FROM account WHERE email = $1`,
+		[email]
+	)
+	if (!result.rows[0]) return null
+	const row = result.rows[0]
+	return {
+		id: String(row.id),
+		accountId: row.id,
+		email: row.email,
+		name: row.name,
+		emailVerified: row.verified_at ? new Date(row.verified_at) : null,
+		passwordHash: row.password_hash,
+	}
+}
+
 function toAdapterUser(row: AccountRow) {
 	return {
 		id: String(row.id),

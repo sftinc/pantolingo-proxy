@@ -1,16 +1,53 @@
 import NextAuth from 'next-auth'
 import type { Session } from 'next-auth'
-import { PantolingoAdapter } from './auth-adapter'
+import type { JWT } from 'next-auth/jwt'
+import Credentials from 'next-auth/providers/credentials'
+import { pool } from '@pantolingo/db/pool'
+import { PantolingoAdapter, getUserByEmailWithPassword } from './auth-adapter'
 import { SmtpProvider } from './auth-email'
+import { verifyPassword } from './password'
 
 const authConfig = {
 	trustHost: true,
 	adapter: PantolingoAdapter(),
-	providers: [SmtpProvider()],
+	providers: [
+		SmtpProvider(),
+		Credentials({
+			credentials: {
+				email: { label: 'Email', type: 'email' },
+				password: { label: 'Password', type: 'password' },
+			},
+			async authorize(credentials) {
+				if (!credentials?.email || !credentials?.password) {
+					return null
+				}
+
+				const email = credentials.email as string
+				const password = credentials.password as string
+
+				const user = await getUserByEmailWithPassword(email)
+				if (!user || !user.passwordHash) {
+					return null
+				}
+
+				const isValid = await verifyPassword(password, user.passwordHash)
+				if (!isValid) {
+					return null
+				}
+
+				return {
+					id: user.id,
+					accountId: user.accountId,
+					email: user.email,
+					name: user.name,
+				}
+			},
+		}),
+	],
 	session: {
-		strategy: 'database' as const,
-		maxAge: 30 * 24 * 60 * 60, // 30 days
-		updateAge: 24 * 60 * 60, // Extend if used within 24h of expiry
+		strategy: 'jwt' as const,
+		maxAge: 24 * 60 * 60, // 1 day - logout after 1 day of inactivity
+		updateAge: 60 * 60, // 1 hour - refresh token if older than 1 hour
 	},
 	pages: {
 		signIn: '/login',
@@ -18,10 +55,21 @@ const authConfig = {
 		error: '/login/error',
 	},
 	callbacks: {
-		async session({ session, user }: { session: Session; user: { accountId: number } }) {
-			// Add accountId to session
-			if (session.user) {
-				session.user.accountId = user.accountId
+		async jwt({ token, user }: { token: JWT; user?: { accountId?: number } }) {
+			// On sign-in, user is available - persist accountId to token
+			if (user?.accountId) {
+				token.accountId = user.accountId
+				// Record last login time
+				pool.query(`UPDATE account SET last_login_at = NOW() WHERE id = $1`, [user.accountId]).catch(
+					(err) => console.error('Failed to update last_login_at:', err)
+				)
+			}
+			return token
+		},
+		async session({ session, token }: { session: Session; token: JWT }) {
+			// Read from token, not user
+			if (session.user && token.accountId) {
+				session.user.accountId = token.accountId as number
 			}
 			return session
 		},

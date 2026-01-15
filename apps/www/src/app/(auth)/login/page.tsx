@@ -1,67 +1,243 @@
-import { redirect } from 'next/navigation'
-import { signIn } from '@/lib/auth'
+'use client'
+
+import { Suspense, useState, useActionState, useTransition } from 'react'
+import { useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { FormInput } from '@/components/ui/FormInput'
 import { SubmitButton } from '@/components/ui/SubmitButton'
+import { ThemeToggle } from '@/components/ui/ThemeToggle'
+import {
+	checkEmailExists,
+	sendMagicLink,
+	signInWithPassword,
+	type AuthActionState,
+} from '@/actions/auth'
+import { isValidEmail } from '@/lib/validation'
 
-function getSafeCallbackUrl(url: string | undefined): string {
+type LoginStep = 'email' | 'password'
+
+function getSafeCallbackUrl(url: string | null): string {
 	if (!url) return '/dashboard'
-	// Only allow relative paths starting with / (but not // which could be protocol-relative)
 	if (url.startsWith('/') && !url.startsWith('//')) {
 		return url
 	}
 	return '/dashboard'
 }
 
-export default async function LoginPage({
-	searchParams,
-}: {
-	searchParams: Promise<{ callbackUrl?: string; error?: string }>
-}) {
-	const { callbackUrl, error } = await searchParams
-	const safeCallbackUrl = getSafeCallbackUrl(callbackUrl)
+export default function LoginPage() {
+	return (
+		<Suspense fallback={<LoginSkeleton />}>
+			<LoginContent />
+		</Suspense>
+	)
+}
 
-	async function handleSignIn(formData: FormData) {
-		'use server'
-		const email = formData.get('email') as string
-		await signIn('smtp', {
-			email,
-			redirect: false,
-			redirectTo: safeCallbackUrl,
-		})
-		redirect('/login/check-email')
-	}
-
+function LoginSkeleton() {
 	return (
 		<main className="flex min-h-screen flex-col items-center justify-center p-6">
 			<div className="w-full max-w-md bg-[var(--card-bg)] p-10 rounded-lg shadow-[0_2px_8px_var(--shadow-color)]">
+				<div className="animate-pulse">
+					<div className="h-8 bg-[var(--border)] rounded mb-4 mx-auto w-3/4" />
+					<div className="h-4 bg-[var(--border)] rounded mb-8 mx-auto w-2/3" />
+					<div className="h-10 bg-[var(--border)] rounded mb-6" />
+					<div className="h-4 bg-[var(--border)] rounded mb-2 w-24" />
+					<div className="h-12 bg-[var(--border)] rounded mb-4" />
+					<div className="h-12 bg-[var(--border)] rounded" />
+				</div>
+			</div>
+		</main>
+	)
+}
+
+function LoginContent() {
+	const searchParams = useSearchParams()
+	const callbackUrl = getSafeCallbackUrl(searchParams.get('callbackUrl'))
+	const errorParam = searchParams.get('error')
+
+	const [step, setStep] = useState<LoginStep>('email')
+	const [email, setEmail] = useState('')
+	const [password, setPassword] = useState('')
+	const [emailError, setEmailError] = useState<string | null>(null)
+	const [passwordError, setPasswordError] = useState<string | null>(null)
+	const [isPending, startTransition] = useTransition()
+
+	const [passwordState, passwordAction] = useActionState<AuthActionState, FormData>(
+		signInWithPassword,
+		null
+	)
+
+	// Handle email step submission
+	const handleEmailSubmit = async (e: React.FormEvent) => {
+		e.preventDefault()
+		setEmailError(null)
+
+		const trimmedEmail = email.trim()
+		if (!trimmedEmail) {
+			setEmailError('Email is required')
+			return
+		}
+		if (!isValidEmail(trimmedEmail)) {
+			setEmailError('Please enter a valid email address')
+			return
+		}
+
+		startTransition(async () => {
+			const exists = await checkEmailExists(trimmedEmail)
+			if (!exists) {
+				setEmailError('No account found with this email')
+			} else {
+				setStep('password')
+			}
+		})
+	}
+
+	// Handle password step submission
+	const handlePasswordSubmit = (formData: FormData) => {
+		setPasswordError(null)
+		const pwd = (formData.get('password') as string) || ''
+
+		if (pwd.length < 8) {
+			setPasswordError('Password must be at least 8 characters')
+			return
+		}
+
+		passwordAction(formData)
+	}
+
+	// Handle forgot password
+	const handleForgotPassword = () => {
+		startTransition(async () => {
+			const formData = new FormData()
+			formData.set('email', email.trim())
+			await sendMagicLink(null, formData)
+		})
+	}
+
+	// Map error codes to messages
+	const getErrorMessage = (error: string) => {
+		switch (error) {
+			case 'Verification':
+				return 'The magic link has expired or is invalid.'
+			case 'Configuration':
+				return 'Server configuration error. Please try again later.'
+			case 'CredentialsSignin':
+				return 'Invalid credentials'
+			default:
+				return error
+		}
+	}
+
+	const error = errorParam || emailError || passwordError || passwordState?.error
+
+	return (
+		<main className="flex min-h-screen flex-col">
+			<div className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 lg:px-8 flex justify-end">
+				<ThemeToggle />
+			</div>
+			<div className="flex flex-1 flex-col items-center justify-center p-6">
+			<div className="w-full max-w-md bg-[var(--card-bg)] p-10 rounded-lg shadow-[0_2px_8px_var(--shadow-color)]">
 				<h1 className="text-3xl font-semibold mb-2 text-[var(--text-heading)] text-center">
-					Sign in to Pantolingo
+					Login to Pantolingo
 				</h1>
-				<p className="text-base text-[var(--text-muted)] mb-8 text-center">
-					Enter your email to receive a magic link
+				<p className="text-base text-[var(--text-muted)] mb-6 text-center">
+					{step === 'email' ? 'Enter your email to continue' : 'Enter your password'}
 				</p>
 
 				{error && (
 					<div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md text-sm">
-						{error === 'Verification' && 'The magic link has expired or is invalid.'}
-						{error === 'Configuration' && 'Server configuration error. Please try again later.'}
-						{!['Verification', 'Configuration'].includes(error) && 'An error occurred. Please try again.'}
+						{getErrorMessage(error)}
 					</div>
 				)}
 
-				<form action={handleSignIn}>
-					<FormInput
-						id="email"
-						name="email"
-						type="email"
-						required
-						autoFocus
-						placeholder="you@example.com"
-						label="Email address"
-						className="mb-4"
-					/>
-					<SubmitButton>Send magic link</SubmitButton>
-				</form>
+				{step === 'email' ? (
+					<form onSubmit={handleEmailSubmit}>
+						<FormInput
+							id="email"
+							name="email"
+							type="email"
+							required
+							autoFocus
+							placeholder="you@example.com"
+							label="Email address"
+							value={email}
+							onChange={(e) => {
+								setEmail(e.target.value)
+								setEmailError(null)
+							}}
+							className="mb-4"
+						/>
+						<button
+							type="submit"
+							disabled={isPending}
+							className="w-full py-3 bg-[var(--accent)] text-white rounded-md font-medium hover:opacity-90 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+						>
+							{isPending ? 'Checking...' : 'Continue'}
+						</button>
+					</form>
+				) : (
+					<form action={handlePasswordSubmit}>
+						<input type="hidden" name="callbackUrl" value={callbackUrl} />
+						<input type="hidden" name="email" value={email.trim()} />
+
+						{/* Show email styled as readonly input */}
+						<div className="mb-4">
+							<label className="block text-sm font-medium text-[var(--text-body)] mb-2">
+								Email address
+							</label>
+							<div className="flex items-center justify-between px-4 py-3 rounded-md border border-[var(--border)] bg-[var(--input-bg)]">
+								<span className="text-[var(--text-muted)]">{email.trim()}</span>
+								<button
+									type="button"
+									onClick={() => {
+										setStep('email')
+										setPassword('')
+										setPasswordError(null)
+									}}
+									className="text-sm text-[var(--accent)] hover:underline"
+								>
+									Change
+								</button>
+							</div>
+						</div>
+
+						<FormInput
+							id="password"
+							name="password"
+							type="password"
+							required
+							autoFocus
+							placeholder="Enter your password"
+							label="Password"
+							value={password}
+							onChange={(e) => {
+								setPassword(e.target.value)
+								setPasswordError(null)
+							}}
+							className="mb-2"
+						/>
+
+						<div className="mb-4 text-right">
+							<button
+								type="button"
+								onClick={handleForgotPassword}
+								disabled={isPending}
+								className="text-sm text-[var(--accent)] hover:underline disabled:opacity-50"
+							>
+								Forgot password?
+							</button>
+						</div>
+
+						<SubmitButton>Login to Pantolingo</SubmitButton>
+					</form>
+				)}
+
+				<p className="mt-6 text-center text-sm text-[var(--text-muted)]">
+					Don&apos;t have an account?{' '}
+					<Link href="/signup" className="text-[var(--accent)] hover:underline">
+						Sign up
+					</Link>
+				</p>
+			</div>
 			</div>
 		</main>
 	)
