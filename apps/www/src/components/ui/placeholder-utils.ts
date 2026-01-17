@@ -1,15 +1,10 @@
-// Lexical-specific utilities for placeholder handling
-// Includes tokenization, validation, and serialization
+// Placeholder utilities for validation and token handling
 
 import {
-	type StandaloneKind,
-	type PairedKind,
 	PLACEHOLDER_REGEX,
-	STANDALONE_KINDS,
-	PAIRED_KINDS,
 	isStandaloneKind,
 	isPairedKind,
-} from '../placeholder-shared'
+} from './placeholder-shared'
 
 // ============================================================================
 // Types
@@ -234,24 +229,4 @@ export function parseToken(token: string): {
 	const isPaired = isPairedKind(kind)
 
 	return { kind, index, isClose, isStandalone, isPaired }
-}
-
-/**
- * Create a standalone placeholder token string
- */
-export function createStandaloneToken(kind: StandaloneKind, index: number): string {
-	return `[${kind}${index}]`
-}
-
-/**
- * Create paired placeholder token strings
- */
-export function createPairedTokens(
-	kind: PairedKind,
-	index: number
-): { open: string; close: string } {
-	return {
-		open: `[${kind}${index}]`,
-		close: `[/${kind}${index}]`,
-	}
 }

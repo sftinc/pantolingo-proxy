@@ -9,7 +9,7 @@ import {
 	PAIRED_COLORS,
 	isStandaloneKind,
 	isPairedKind,
-} from '../placeholder-shared'
+} from './placeholder-shared'
 import { parseToken } from './placeholder-utils'
 
 // ============================================================================

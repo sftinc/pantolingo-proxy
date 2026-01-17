@@ -8,9 +8,9 @@ import { PlaceholderText } from '@/components/ui/PlaceholderText'
 import {
 	PlaceholderEditor,
 	type PlaceholderEditorRef,
-} from '@/components/ui/lexical/PlaceholderEditor'
-import { MissingPlaceholderToolbar } from '@/components/ui/lexical/MissingPlaceholderToolbar'
-import { validatePlaceholders, type ValidationResult } from '@/components/ui/lexical/placeholder-utils'
+} from '@/components/ui/PlaceholderEditor'
+import { MissingPlaceholderToolbar } from '@/components/ui/MissingPlaceholderToolbar'
+import { validatePlaceholders, type ValidationResult } from '@/components/ui/placeholder-utils'
 import { getLanguageName } from '@pantolingo/lang'
 import { saveSegmentTranslation, reviewSegment } from '@/actions/translations'
 
