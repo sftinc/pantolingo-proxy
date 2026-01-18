@@ -67,6 +67,10 @@ export function htmlToPlaceholders(innerHTML: string, preserveWhitespace = false
 	// Normalize whitespace (skip for pre tags to preserve line breaks)
 	let result = preserveWhitespace ? innerHTML : normalizeWhitespace(innerHTML)
 
+	// Decode numeric HTML entities to actual characters
+	// Prevents applyPatterns from corrupting &#160; → &#[N1];
+	result = result.replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)))
+
 	// Regex to match HTML tags (opening, closing, and self-closing)
 	// Captures: full match, slash for closing, tag name, attributes
 	const tagRegex = /<(\/?)(\w+)([^>]*)>/g
