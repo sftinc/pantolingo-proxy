@@ -8,8 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 -   **Planning Agent**
 
-    -   Include a **clickable markdown link** to the plan file at the end of the plan
-    -   Format: `[filename.md](../../../../.claude/plans/filename.md)`
+    -   Include the plan name at the end of the plan: `Plan Name: {thePlanName}`
 
 -   **Todo files**: When creating future work items, add a file to `todo/` named `todo_<task-name>.md`.
     -   `## Summary` - describe the change(s)
