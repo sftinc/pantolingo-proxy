@@ -123,7 +123,7 @@ export interface TranslationStats {
  * Segment cache stored per website+language (domain-wide scope)
  * Single cache accumulates ALL segment translations across entire site
  *
- * Key format: segments::{lang}::{websiteDomain}
+ * Key format: segments::{lang}::{websiteHostname}
  * Example key: segments::es::www.esnipe.com
  *
  * Value format: Hash map for O(1) lookups
@@ -138,7 +138,7 @@ export type SegmentCache = Record<string, string>
  * Pathname mapping cache stored per website+language
  * Enables bidirectional lookup: English ↔ Translated pathnames
  *
- * Key format: pathnames::{lang}::{websiteDomain}
+ * Key format: pathnames::{lang}::{websiteHostname}
  * Example key: pathnames::es::www.esnipe.com
  *
  * Value format: Dual-object structure with forward and reverse mappings

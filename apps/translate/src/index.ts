@@ -23,7 +23,7 @@ import { isStaticAsset } from './utils.js'
 import { prepareResponseHeaders } from './fetch/filter-headers.js'
 import { renderMessagePage } from './utils/message-page.js'
 import {
-	getHostConfig,
+	getTranslationConfig,
 	getWebsitePathId,
 	lookupPathname,
 	batchLookupPathnames,
@@ -219,9 +219,9 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 
 	try {
 		// 1. Parse request and determine target language from database
-		const hostConfig = await getHostConfig(host.startsWith('localhost') ? host.split(':')[0] : host)
+		const translationConfig = await getTranslationConfig(host.startsWith('localhost') ? host.split(':')[0] : host)
 
-		if (!hostConfig) {
+		if (!translationConfig) {
 			// console.log(`Unknown host: ${host}`)
 			res.set('Content-Type', 'text/html').send(
 				renderMessagePage({
@@ -233,12 +233,12 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 			return
 		}
 
-		const targetLang = hostConfig.targetLang
+		const targetLang = translationConfig.targetLang
 
 		// Extract per-domain website configuration
-		const originBase = `https://${hostConfig.websiteDomain}`
-		const originHostname = hostConfig.websiteDomain
-		const sourceLang = hostConfig.sourceLang
+		const originBase = `https://${translationConfig.websiteHostname}`
+		const originHostname = translationConfig.websiteHostname
+		const sourceLang = translationConfig.sourceLang
 
 		// Resolve pathname (reverse lookup for translated URLs)
 		// Always attempt reverse lookup to support bookmarked/indexed translated URLs
@@ -287,8 +287,8 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 
 			// Proxy static asset with filtered headers and security headers
 			const responseHeaders = prepareResponseHeaders(originResponse.headers)
-			if (hostConfig.proxiedCache && hostConfig.proxiedCache > 0) {
-				const maxAgeSeconds = hostConfig.proxiedCache * 60
+			if (translationConfig.proxiedCache && translationConfig.proxiedCache > 0) {
+				const maxAgeSeconds = translationConfig.proxiedCache * 60
 				responseHeaders['Cache-Control'] = `public, max-age=${maxAgeSeconds}`
 			}
 
@@ -300,7 +300,7 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 		// STAGE 1: Early pathname lookup for reverse URL resolution
 		// Normalize incoming pathname before lookup (DB stores normalized paths)
 		const { normalized: normalizedIncoming, replacements: incomingReplacements } = normalizePathname(incomingPathname)
-		const pathnameResult = await lookupPathname(hostConfig.websiteId, hostConfig.targetLang, normalizedIncoming)
+		const pathnameResult = await lookupPathname(translationConfig.websiteId, translationConfig.targetLang, normalizedIncoming)
 		if (pathnameResult) {
 			// If we found a match and the incoming path matches the translated path,
 			// use the original path for fetching (denormalize to restore numeric values)
@@ -393,13 +393,13 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 
 				// Add Cache-Control header if proxiedCache is configured
 				const truncatedUrl = fetchUrl.length > 50 ? fetchUrl.substring(0, 50) + '...' : fetchUrl
-				if (hostConfig.proxiedCache && hostConfig.proxiedCache > 0) {
-					const maxAgeSeconds = hostConfig.proxiedCache * 60
+				if (translationConfig.proxiedCache && translationConfig.proxiedCache > 0) {
+					const maxAgeSeconds = translationConfig.proxiedCache * 60
 					proxyHeaders['Cache-Control'] = `public, max-age=${maxAgeSeconds}`
 
 					if (proxyLogging) {
 						console.log(
-							`▶ [${targetLang}] ${truncatedUrl} - Proxying with cache: ${contentType} (${hostConfig.proxiedCache}m)`
+							`▶ [${targetLang}] ${truncatedUrl} - Proxying with cache: ${contentType} (${translationConfig.proxiedCache}m)`
 						)
 					}
 				} else {
@@ -414,8 +414,8 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 			// Initialize deferred writes - will be executed after response is sent
 			const { normalized: normalizedCurrentPath } = normalizePathname(originalPathname)
 			const deferredWrites: DeferredWrites = {
-				websiteId: hostConfig.websiteId,
-				lang: hostConfig.targetLang,
+				websiteId: translationConfig.websiteId,
+				lang: translationConfig.targetLang,
 				translations: [],
 				pathnames: [{ original: normalizedCurrentPath, translated: normalizedCurrentPath }], // Always include current path
 				currentPath: normalizedCurrentPath,
@@ -461,8 +461,8 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 				// 7. Batch lookup translations from database
 				const segmentTexts = normalizedSegments.map((s) => s.value)
 				const cachedTranslations = await batchGetTranslations(
-					hostConfig.websiteId,
-					hostConfig.targetLang,
+					translationConfig.websiteId,
+					translationConfig.targetLang,
 					segmentTexts
 				)
 
@@ -480,7 +480,7 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 				// 8. Extract link pathnames early (before translation) for parallel processing
 				// Skip path translation for error responses (4xx, 5xx)
 				const isErrorResponse = fetchResult.statusCode >= 400
-				const linkPathnames = hostConfig.translatePath && !isErrorResponse
+				const linkPathnames = translationConfig.translatePath && !isErrorResponse
 					? extractLinkPathnames(document, originHostname)
 					: new Set<string>()
 
@@ -496,8 +496,8 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 								targetLang,
 								GOOGLE_PROJECT_ID(),
 								OPENROUTER_API_KEY(),
-								hostConfig.skipWords,
-								'balanced' // TODO: Use hostConfig.style after DB migration
+								translationConfig.skipWords,
+								'balanced' // TODO: Use translationConfig.style after DB migration
 						  )
 						: Promise.resolve({ translations: [], uniqueCount: 0, batchCount: 0 })
 
@@ -511,7 +511,7 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 					let totalPaths = 0
 
 					// Skip path translation for error responses or if disabled
-					if (!hostConfig.translatePath || isErrorResponse) {
+					if (!translationConfig.translatePath || isErrorResponse) {
 						return {
 							translatedPathname,
 							pathnameSegment,
@@ -525,7 +525,7 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 					try {
 						// Add current pathname to link pathnames for batching
 						const allPathnames = new Set(linkPathnames)
-						if (!shouldSkipPath(originalPathname, hostConfig.skipPath)) {
+						if (!shouldSkipPath(originalPathname, translationConfig.skipPath)) {
 							allPathnames.add(originalPathname)
 						}
 						totalPaths = allPathnames.size
@@ -549,8 +549,8 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 						}
 						const normalizedPaths = Array.from(normalizedToOriginal.keys())
 						const existingPathnames = await batchLookupPathnames(
-							hostConfig.websiteId,
-							hostConfig.targetLang,
+							translationConfig.websiteId,
+							translationConfig.targetLang,
 							normalizedPaths
 						)
 
@@ -583,12 +583,12 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 									targetLang,
 									GOOGLE_PROJECT_ID(),
 									OPENROUTER_API_KEY(),
-									hostConfig.skipWords,
+									translationConfig.skipWords,
 									'balanced'
 								)
 								return result.translations
 							},
-							hostConfig.skipPath
+							translationConfig.skipPath
 						)
 
 						// Extract current pathname translation from batch results
@@ -666,7 +666,7 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 					}
 
 					// 13. Update current page pathname if it was translated
-					if (hostConfig.translatePath && pathnameSegment && translatedPathname !== originalPathname) {
+					if (translationConfig.translatePath && pathnameSegment && translatedPathname !== originalPathname) {
 						const { normalized: normalizedTranslated } = normalizePathname(translatedPathname)
 						// Update the current path entry with the translated version
 						deferredWrites.pathnames[0] = {
@@ -682,7 +682,7 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 						host,
 						originalPathname,
 						translatedPathname,
-						hostConfig.translatePath || false,
+						translationConfig.translatePath || false,
 						pathnameMap
 					)
 
@@ -695,7 +695,7 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 					}
 
 					// 15b. Collect link pathnames for deferred write
-					if (hostConfig.translatePath && pathnameSegments.length > 0) {
+					if (translationConfig.translatePath && pathnameSegments.length > 0) {
 						const linkUpdates = pathnameSegments.map((seg, i) => ({
 							original: seg.value,
 							translated: pathnameTranslations[i],

@@ -43,7 +43,7 @@ export default async function WebsiteDetailPage({ params }: WebsiteDetailPagePro
 			<DashboardNav
 				breadcrumbs={[
 					{ label: 'Dashboard', href: '/dashboard' },
-					{ label: `${website.domain} ${getFlag(website.sourceLang)}` },
+					{ label: `${website.hostname} ${getFlag(website.sourceLang)}` },
 				]}
 			/>
 

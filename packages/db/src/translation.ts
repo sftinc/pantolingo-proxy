@@ -1,29 +1,29 @@
 /**
- * Host configuration queries
+ * Translation configuration queries
  * Replaces HOST_SETTINGS lookup with database query
  */
 
 import { pool } from './pool.js'
 
 /**
- * Host configuration from database
+ * Translation configuration from database
  * Matches structure needed by index.ts
  */
-export interface HostConfig {
-	hostId: number
+export interface TranslationConfig {
+	translationId: number
 	websiteId: number // website.id - used for translation lookups
-	websiteDomain: string // website.domain
+	websiteHostname: string // website.hostname
 	sourceLang: string // website.source_lang
-	targetLang: string // host.target_lang
+	targetLang: string // translation.target_lang
 	skipWords: string[]
 	skipPath: (string | RegExp)[]
 	translatePath: boolean
 	proxiedCache: number
 }
 
-// In-memory cache for hot path (host config rarely changes)
-const hostCache = new Map<string, { config: HostConfig | null; expiresAt: number }>()
-const HOST_CACHE_TTL = 60_000 // 60 seconds
+// In-memory cache for hot path (translation config rarely changes)
+const translationCache = new Map<string, { config: TranslationConfig | null; expiresAt: number }>()
+const TRANSLATION_CACHE_TTL = 60_000 // 60 seconds
 
 /**
  * Parse skip_path array from database format
@@ -45,61 +45,61 @@ function parseSkipPath(dbArray: string[] | null): (string | RegExp)[] {
 }
 
 /**
- * Get host configuration by hostname
+ * Get translation configuration by hostname
  * Uses in-memory cache to avoid DB hit on every request
  *
  * @param hostname - Request hostname (e.g., 'es.esnipe.com')
- * @returns HostConfig or null if not found/disabled
+ * @returns TranslationConfig or null if not found/disabled
  *
- * SQL: 1 query (host JOIN website)
+ * SQL: 1 query (translation JOIN website)
  */
-export async function getHostConfig(hostname: string): Promise<HostConfig | null> {
+export async function getTranslationConfig(hostname: string): Promise<TranslationConfig | null> {
 	// Check in-memory cache first
 	const now = Date.now()
-	const cached = hostCache.get(hostname)
+	const cached = translationCache.get(hostname)
 	if (cached && cached.expiresAt > now) {
 		return cached.config
 	}
 
 	try {
 		const result = await pool.query<{
-			host_id: number
+			translation_id: number
 			website_id: number
 			target_lang: string
 			skip_words: string[] | null
 			skip_path: string[] | null
 			translate_path: boolean | null
 			proxied_cache: number
-			website_domain: string
+			website_hostname: string
 			source_lang: string
 		}>(
 			`SELECT
-				h.id AS host_id,
-				h.website_id,
-				h.target_lang,
+				t.id AS translation_id,
+				t.website_id,
+				t.target_lang,
 				w.skip_words,
 				w.skip_path,
 				w.translate_path,
-				h.proxied_cache,
-				w.domain AS website_domain,
+				t.proxied_cache,
+				w.hostname AS website_hostname,
 				w.source_lang
-			FROM host h
-			JOIN website w ON w.id = h.website_id
-			WHERE h.hostname = $1 AND h.enabled = TRUE`,
+			FROM translation t
+			JOIN website w ON w.id = t.website_id
+			WHERE t.hostname = $1 AND t.enabled = TRUE`,
 			[hostname]
 		)
 
 		if (result.rows.length === 0) {
-			// Cache the miss too (prevents repeated queries for invalid hosts)
-			hostCache.set(hostname, { config: null, expiresAt: now + HOST_CACHE_TTL })
+			// Cache the miss too (prevents repeated queries for unknown hostnames)
+			translationCache.set(hostname, { config: null, expiresAt: now + TRANSLATION_CACHE_TTL })
 			return null
 		}
 
 		const row = result.rows[0]
-		const config: HostConfig = {
-			hostId: row.host_id,
+		const config: TranslationConfig = {
+			translationId: row.translation_id,
 			websiteId: row.website_id,
-			websiteDomain: row.website_domain,
+			websiteHostname: row.website_hostname,
 			sourceLang: row.source_lang,
 			targetLang: row.target_lang,
 			skipWords: row.skip_words || [],
@@ -109,18 +109,18 @@ export async function getHostConfig(hostname: string): Promise<HostConfig | null
 		}
 
 		// Cache the result
-		hostCache.set(hostname, { config, expiresAt: now + HOST_CACHE_TTL })
+		translationCache.set(hostname, { config, expiresAt: now + TRANSLATION_CACHE_TTL })
 		return config
 	} catch (error) {
-		console.error('DB host config lookup failed:', error)
+		console.error('DB translation config lookup failed:', error)
 		return null // Fail open
 	}
 }
 
 /**
- * Clear host config cache
+ * Clear translation config cache
  * Useful for testing or after config changes
  */
-export function clearHostCache(): void {
-	hostCache.clear()
+export function clearTranslationCache(): void {
+	translationCache.clear()
 }

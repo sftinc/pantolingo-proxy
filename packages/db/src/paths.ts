@@ -4,7 +4,7 @@
  *
  * Uses normalized schema:
  * - website_path: source paths stored once per website
- * - translated_path: path translations scoped to website + lang
+ * - translation_path: path translations scoped to website + lang
  */
 
 import { pool } from './pool.js'
@@ -65,7 +65,7 @@ export interface PathIds {
  * @param pathname - Incoming pathname (could be original or translated)
  * @returns { originalPath, translatedPath } or null if not found
  *
- * SQL: 1 query joining website_path -> translated_path
+ * SQL: 1 query joining website_path -> translation_path
  */
 export async function lookupPathname(
 	websiteId: number,
@@ -80,7 +80,7 @@ export async function lookupPathname(
 		}>(
 			`SELECT wp.id, wp.path, tp.translated_path
 			FROM website_path wp
-			JOIN translated_path tp ON tp.website_path_id = wp.id
+			JOIN translation_path tp ON tp.website_path_id = wp.id
 			WHERE wp.website_id = $1
 			  AND tp.lang = $2
 			  AND (wp.path = $3 OR tp.translated_path = $3)
@@ -113,7 +113,7 @@ export async function lookupPathname(
  * @param paths - Array of original paths to look up
  * @returns Map<originalPath, translatedPath>
  *
- * SQL: 1 query joining website_path -> translated_path
+ * SQL: 1 query joining website_path -> translation_path
  */
 export async function batchLookupPathnames(
 	websiteId: number,
@@ -131,7 +131,7 @@ export async function batchLookupPathnames(
 		}>(
 			`SELECT wp.path, tp.translated_path
 			FROM website_path wp
-			JOIN translated_path tp ON tp.website_path_id = wp.id
+			JOIN translation_path tp ON tp.website_path_id = wp.id
 			WHERE wp.website_id = $1
 			  AND tp.lang = $2
 			  AND wp.path = ANY($3::text[])`,
@@ -160,7 +160,7 @@ export async function batchLookupPathnames(
  * @param mappings - Array of { original, translated } pairs
  * @returns Map of path -> { websitePathId, translatedPathId }
  *
- * SQL: 2 queries - one for website_path, one for translated_path
+ * SQL: 2 queries - one for website_path, one for translation_path
  */
 export async function batchUpsertPathnames(
 	websiteId: number,
@@ -196,9 +196,9 @@ export async function batchUpsertPathnames(
 			[websiteId, originals]
 		)
 
-		// Step 2: Upsert translated_path (translations)
+		// Step 2: Upsert translation_path (translations)
 		const result = await pool.query<{ id: number; website_path_id: number; path: string }>(
-			`INSERT INTO translated_path (website_path_id, lang, translated_path)
+			`INSERT INTO translation_path (website_path_id, lang, translated_path)
 			SELECT wp.id, $2, t.translated
 			FROM unnest($3::text[], $4::text[]) AS t(original, translated)
 			JOIN website_path wp ON wp.website_id = $1 AND wp.path = t.original

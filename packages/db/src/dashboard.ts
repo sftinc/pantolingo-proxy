@@ -11,7 +11,7 @@ import { pool } from './pool.js'
 
 export interface WebsiteWithStats {
 	id: number
-	domain: string
+	hostname: string
 	sourceLang: string
 	langCount: number
 	segmentCount: number
@@ -52,7 +52,7 @@ export interface PaginatedResult<T> {
 
 export interface Website {
 	id: number
-	domain: string
+	hostname: string
 	sourceLang: string
 }
 
@@ -90,7 +90,7 @@ export async function canAccessWebsite(accountId: number, websiteId: number): Pr
 export async function getWebsitesWithStats(accountId: number): Promise<WebsiteWithStats[]> {
 	const result = await pool.query<{
 		id: number
-		domain: string
+		hostname: string
 		source_lang: string
 		lang_count: string
 		segment_count: string
@@ -99,22 +99,22 @@ export async function getWebsitesWithStats(accountId: number): Promise<WebsiteWi
 		`
 		SELECT
 			w.id,
-			w.domain,
+			w.hostname,
 			w.source_lang,
-			(SELECT COUNT(DISTINCT target_lang) FROM host h WHERE h.website_id = w.id) as lang_count,
-			(SELECT COUNT(*) FROM translated_segment ts JOIN website_segment ws ON ws.id = ts.website_segment_id WHERE ws.website_id = w.id) as segment_count,
-			(SELECT COUNT(*) FROM translated_path tp JOIN website_path wp ON wp.id = tp.website_path_id WHERE wp.website_id = w.id AND EXISTS (SELECT 1 FROM website_path_segment wps WHERE wps.website_path_id = wp.id)) as path_count
+			(SELECT COUNT(DISTINCT target_lang) FROM translation t WHERE t.website_id = w.id) as lang_count,
+			(SELECT COUNT(*) FROM translation_segment ts JOIN website_segment ws ON ws.id = ts.website_segment_id WHERE ws.website_id = w.id) as segment_count,
+			(SELECT COUNT(*) FROM translation_path tp JOIN website_path wp ON wp.id = tp.website_path_id WHERE wp.website_id = w.id AND EXISTS (SELECT 1 FROM website_path_segment wps WHERE wps.website_path_id = wp.id)) as path_count
 		FROM account_website aw
 		JOIN website w ON w.id = aw.website_id
 		WHERE aw.account_id = $1
-		ORDER BY w.domain
+		ORDER BY w.hostname
 	`,
 		[accountId]
 	)
 
 	return result.rows.map((row) => ({
 		id: row.id,
-		domain: row.domain,
+		hostname: row.hostname,
 		sourceLang: row.source_lang,
 		langCount: parseInt(row.lang_count, 10),
 		segmentCount: parseInt(row.segment_count, 10),
@@ -130,10 +130,10 @@ export async function getWebsitesWithStats(accountId: number): Promise<WebsiteWi
 export async function getWebsiteById(websiteId: number): Promise<Website | null> {
 	const result = await pool.query<{
 		id: number
-		domain: string
+		hostname: string
 		source_lang: string
 	}>(
-		`SELECT id, domain, source_lang FROM website WHERE id = $1`,
+		`SELECT id, hostname, source_lang FROM website WHERE id = $1`,
 		[websiteId]
 	)
 
@@ -142,7 +142,7 @@ export async function getWebsiteById(websiteId: number): Promise<Website | null>
 	const row = result.rows[0]
 	return {
 		id: row.id,
-		domain: row.domain,
+		hostname: row.hostname,
 		sourceLang: row.source_lang,
 	}
 }
@@ -164,7 +164,7 @@ export async function getLangsForWebsite(websiteId: number): Promise<LangWithSta
 			SELECT ts.lang,
 				COUNT(*) as total,
 				COUNT(*) FILTER (WHERE ts.reviewed_at IS NULL) as unreviewed
-			FROM translated_segment ts
+			FROM translation_segment ts
 			JOIN website_segment ws ON ws.id = ts.website_segment_id
 			WHERE ws.website_id = $1
 			GROUP BY ts.lang
@@ -173,22 +173,22 @@ export async function getLangsForWebsite(websiteId: number): Promise<LangWithSta
 			SELECT tp.lang,
 				COUNT(*) as total,
 				COUNT(*) FILTER (WHERE tp.reviewed_at IS NULL) as unreviewed
-			FROM translated_path tp
+			FROM translation_path tp
 			JOIN website_path wp ON wp.id = tp.website_path_id
 			WHERE wp.website_id = $1 AND EXISTS (SELECT 1 FROM website_path_segment wps WHERE wps.website_path_id = wp.id)
 			GROUP BY tp.lang
 		)
 		SELECT DISTINCT
-			h.target_lang,
+			t.target_lang,
 			COALESCE(ss.total, 0) as translated_segment_count,
 			COALESCE(ps.total, 0) as translated_path_count,
 			COALESCE(ss.unreviewed, 0) as unreviewed_segment_count,
 			COALESCE(ps.unreviewed, 0) as unreviewed_path_count
-		FROM host h
-		LEFT JOIN segment_stats ss ON ss.lang = h.target_lang
-		LEFT JOIN path_stats ps ON ps.lang = h.target_lang
-		WHERE h.website_id = $1
-		ORDER BY h.target_lang
+		FROM translation t
+		LEFT JOIN segment_stats ss ON ss.lang = t.target_lang
+		LEFT JOIN path_stats ps ON ps.lang = t.target_lang
+		WHERE t.website_id = $1
+		ORDER BY t.target_lang
 	`,
 		[websiteId]
 	)
@@ -207,7 +207,7 @@ export async function getLangsForWebsite(websiteId: number): Promise<LangWithSta
  */
 export async function isValidLangForWebsite(websiteId: number, lang: string): Promise<boolean> {
 	const result = await pool.query<{ exists: boolean }>(
-		'SELECT EXISTS(SELECT 1 FROM host WHERE website_id = $1 AND target_lang = $2) as exists',
+		'SELECT EXISTS(SELECT 1 FROM translation WHERE website_id = $1 AND target_lang = $2) as exists',
 		[websiteId, lang]
 	)
 	return result.rows[0]?.exists ?? false
@@ -273,7 +273,7 @@ export async function getSegmentsForLang(
 		`
 		SELECT COUNT(*) as count
 		${fromClause}
-		LEFT JOIN translated_segment ts ON ts.website_segment_id = ws.id AND ts.lang = $2
+		LEFT JOIN translation_segment ts ON ts.website_segment_id = ws.id AND ts.lang = $2
 		${whereClause}
 	`,
 		params
@@ -296,7 +296,7 @@ export async function getSegmentsForLang(
 			ts.translated_text,
 			ts.reviewed_at
 		${fromClause}
-		LEFT JOIN translated_segment ts ON ts.website_segment_id = ws.id AND ts.lang = $2
+		LEFT JOIN translation_segment ts ON ts.website_segment_id = ws.id AND ts.lang = $2
 		${whereClause}
 		ORDER BY ws.id
 		LIMIT $${params.length + 1} OFFSET $${params.length + 2}
@@ -347,7 +347,7 @@ export async function getPathsForLang(
 		`
 		SELECT COUNT(*) as count
 		FROM website_path wp
-		LEFT JOIN translated_path tp ON tp.website_path_id = wp.id AND tp.lang = $2
+		LEFT JOIN translation_path tp ON tp.website_path_id = wp.id AND tp.lang = $2
 		${whereClause}
 	`,
 		[websiteId, lang]
@@ -370,7 +370,7 @@ export async function getPathsForLang(
 			tp.translated_path,
 			tp.reviewed_at
 		FROM website_path wp
-		LEFT JOIN translated_path tp ON tp.website_path_id = wp.id AND tp.lang = $2
+		LEFT JOIN translation_path tp ON tp.website_path_id = wp.id AND tp.lang = $2
 		${whereClause}
 		ORDER BY wp.id
 		LIMIT $3 OFFSET $4
@@ -416,7 +416,7 @@ export async function updateSegmentTranslation(
 ): Promise<{ success: boolean; error?: string }> {
 	try {
 		await pool.query(
-			`UPDATE translated_segment ts
+			`UPDATE translation_segment ts
 			 SET translated_text = $4,
 			     updated_at = NOW(),
 			     reviewed_at = CASE
@@ -457,7 +457,7 @@ export async function updatePathTranslation(
 ): Promise<{ success: boolean; error?: string }> {
 	try {
 		await pool.query(
-			`UPDATE translated_path tp
+			`UPDATE translation_path tp
 			 SET translated_path = $4,
 			     updated_at = NOW(),
 			     reviewed_at = CASE
@@ -494,7 +494,7 @@ export async function markSegmentReviewed(
 ): Promise<{ success: boolean; error?: string }> {
 	try {
 		await pool.query(
-			`UPDATE translated_segment ts
+			`UPDATE translation_segment ts
 			 SET reviewed_at = NOW(), updated_at = NOW()
 			 FROM website_segment ws
 			 WHERE ts.website_segment_id = $2
@@ -525,7 +525,7 @@ export async function markPathReviewed(
 ): Promise<{ success: boolean; error?: string }> {
 	try {
 		await pool.query(
-			`UPDATE translated_path tp
+			`UPDATE translation_path tp
 			 SET reviewed_at = NOW(), updated_at = NOW()
 			 FROM website_path wp
 			 WHERE tp.website_path_id = $2

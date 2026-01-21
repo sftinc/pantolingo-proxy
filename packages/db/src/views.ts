@@ -40,7 +40,7 @@ export async function updateSegmentLastUsed(
 
 	try {
 		await pool.query(
-			`UPDATE translated_segment ts
+			`UPDATE translation_segment ts
 			 SET last_used_on = CURRENT_DATE
 			 FROM website_segment ws
 			 WHERE ts.website_segment_id = ws.id
@@ -73,7 +73,7 @@ export async function updatePathLastUsed(
 
 	try {
 		await pool.query(
-			`UPDATE translated_path tp
+			`UPDATE translation_path tp
 			 SET last_used_on = CURRENT_DATE
 			 FROM website_path wp
 			 WHERE tp.website_path_id = wp.id

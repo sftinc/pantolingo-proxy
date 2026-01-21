@@ -90,7 +90,7 @@ export default async function LangDetailPage({ params, searchParams }: LangDetai
 				breadcrumbs={[
 					{ label: 'Dashboard', href: '/dashboard' },
 					{
-						label: `${website.domain} ${getFlag(website.sourceLang)}`,
+						label: `${website.hostname} ${getFlag(website.sourceLang)}`,
 						href: `/dashboard/website/${websiteId}`,
 					},
 					{ label: `${getLanguageLabel(langCd)} (${formatNumber(data.total)})` },

@@ -11,7 +11,7 @@ export function WebsiteCard({ website }: WebsiteCardProps) {
 	return (
 		<Card href={`/dashboard/website/${website.id}`}>
 			<CardHeader>
-				<CardTitle>{website.domain}</CardTitle>
+				<CardTitle>{website.hostname}</CardTitle>
 				<CardDescription>Source: {getLanguageName(website.sourceLang)}</CardDescription>
 			</CardHeader>
 			<CardContent>

@@ -4,7 +4,7 @@
 
 export { pool, testConnection, closePool } from './pool.js'
 export { hashText } from './utils/hash.js'
-export { getHostConfig, clearHostCache, type HostConfig } from './host.js'
+export { getTranslationConfig, clearTranslationCache, type TranslationConfig } from './translation.js'
 export {
 	batchGetTranslations,
 	batchUpsertTranslations,
@@ -12,7 +12,7 @@ export {
 	batchGetWebsiteSegmentIds,
 	type TranslationItem,
 } from './segments.js'
-export { linkPathnameTranslations, linkPathSegments } from './junctions.js'
+export { linkPathSegments } from './junctions.js'
 export {
 	getWebsitePathId,
 	lookupPathname,

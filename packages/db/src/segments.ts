@@ -4,7 +4,7 @@
  *
  * Uses normalized schema:
  * - website_segment: source text stored once per website
- * - translated_segment: translations scoped to website + lang
+ * - translation_segment: translations scoped to website + lang
  */
 
 import { pool } from './pool.js'
@@ -22,12 +22,12 @@ export interface TranslationItem {
  * Batch lookup translations by text
  * Uses text_hash for efficient indexed lookups
  *
- * @param websiteId - Website ID from getHostConfig()
+ * @param websiteId - Website ID from getTranslationConfig()
  * @param lang - Target language code
  * @param texts - Array of normalized text strings to look up
  * @returns Map of original text -> translated text (only cache hits)
  *
- * SQL: 1 query joining website_segment -> translated_segment
+ * SQL: 1 query joining website_segment -> translation_segment
  */
 export async function batchGetTranslations(
 	websiteId: number,
@@ -48,7 +48,7 @@ export async function batchGetTranslations(
 		}>(
 			`SELECT ws.text, ts.translated_text
 			FROM website_segment ws
-			JOIN translated_segment ts ON ts.website_segment_id = ws.id
+			JOIN translation_segment ts ON ts.website_segment_id = ws.id
 			WHERE ws.website_id = $1
 			  AND ts.lang = $2
 			  AND ws.text_hash = ANY($3::text[])`,
@@ -77,7 +77,7 @@ export async function batchGetTranslations(
  * @param translations - Array of translation items
  * @returns Map of text_hash -> translated_segment.id
  *
- * SQL: 2 queries - one for website_segment, one for translated_segment
+ * SQL: 2 queries - one for website_segment, one for translation_segment
  */
 export async function batchUpsertTranslations(
 	websiteId: number,
@@ -115,9 +115,9 @@ export async function batchUpsertTranslations(
 			[websiteId, originals, hashes]
 		)
 
-		// Step 2: Upsert translated_segment (translations)
+		// Step 2: Upsert translation_segment (translations)
 		const result = await pool.query<{ id: number; text_hash: string }>(
-			`INSERT INTO translated_segment (website_segment_id, lang, translated_text)
+			`INSERT INTO translation_segment (website_segment_id, lang, translated_text)
 			SELECT ws.id, $2, t.translated
 			FROM unnest($3::text[], $4::text[]) AS t(hash, translated)
 			JOIN website_segment ws ON ws.website_id = $1 AND ws.text_hash = t.hash
@@ -147,7 +147,7 @@ export async function batchUpsertTranslations(
  * @param textHashes - Array of text hashes to look up
  * @returns Map of text_hash -> translated_segment.id
  *
- * SQL: 1 query joining website_segment -> translated_segment
+ * SQL: 1 query joining website_segment -> translation_segment
  */
 export async function batchGetTranslationIds(
 	websiteId: number,
@@ -162,7 +162,7 @@ export async function batchGetTranslationIds(
 		const result = await pool.query<{ text_hash: string; id: number }>(
 			`SELECT ws.text_hash, ts.id
 			FROM website_segment ws
-			JOIN translated_segment ts ON ts.website_segment_id = ws.id
+			JOIN translation_segment ts ON ts.website_segment_id = ws.id
 			WHERE ws.website_id = $1
 			  AND ts.lang = $2
 			  AND ws.text_hash = ANY($3::text[])`,
