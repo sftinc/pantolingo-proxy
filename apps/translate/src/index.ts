@@ -22,6 +22,7 @@ import {
 import { isStaticAsset } from './utils.js'
 import { prepareResponseHeaders } from './fetch/filter-headers.js'
 import { renderMessagePage } from './utils/message-page.js'
+import { getCacheControl, isDataFileExtension, isDataContentType } from './utils/cache-control.js'
 import {
 	getTranslationConfig,
 	getWebsitePathId,
@@ -286,11 +287,13 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 			}
 
 			// Proxy static asset with filtered headers and security headers
+			// Data files (.json, .xml) respect origin cache; other static assets get 5-min minimum
 			const responseHeaders = prepareResponseHeaders(originResponse.headers)
-			if (translationConfig.proxiedCache && translationConfig.proxiedCache > 0) {
-				const maxAgeSeconds = translationConfig.proxiedCache * 60
-				responseHeaders['Cache-Control'] = `public, max-age=${maxAgeSeconds}`
-			}
+			responseHeaders['Cache-Control'] = getCacheControl({
+				originHeaders: originResponse.headers,
+				cacheDisabledUntil: translationConfig.cacheDisabledUntil,
+				applyMinimumCache: !isDataFileExtension(incomingPathname),
+			})
 
 			const body = Buffer.from(await originResponse.arrayBuffer())
 			res.status(originResponse.status).set(responseHeaders).send(body)
@@ -389,21 +392,17 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 			// Handle non-HTML content (proxy)
 			if (!contentType.toLowerCase().includes('text/html')) {
 				// Proxy non-HTML resources with filtered headers and security headers
+				// Data content types (JSON, XML) respect origin cache; other types get 5-min minimum
 				const proxyHeaders = prepareResponseHeaders(originResponse.headers)
+				proxyHeaders['Cache-Control'] = getCacheControl({
+					originHeaders: originResponse.headers,
+					cacheDisabledUntil: translationConfig.cacheDisabledUntil,
+					applyMinimumCache: !isDataContentType(contentType),
+				})
 
-				// Add Cache-Control header if proxiedCache is configured
-				const truncatedUrl = fetchUrl.length > 50 ? fetchUrl.substring(0, 50) + '...' : fetchUrl
-				if (translationConfig.proxiedCache && translationConfig.proxiedCache > 0) {
-					const maxAgeSeconds = translationConfig.proxiedCache * 60
-					proxyHeaders['Cache-Control'] = `public, max-age=${maxAgeSeconds}`
-
-					if (proxyLogging) {
-						console.log(
-							`▶ [${targetLang}] ${truncatedUrl} - Proxying with cache: ${contentType} (${translationConfig.proxiedCache}m)`
-						)
-					}
-				} else {
-					if (proxyLogging) console.log(`▶ [${targetLang}] ${truncatedUrl} - Proxying: ${contentType}`)
+				if (proxyLogging) {
+					const truncatedUrl = fetchUrl.length > 50 ? fetchUrl.substring(0, 50) + '...' : fetchUrl
+					console.log(`▶ [${targetLang}] ${truncatedUrl} - Proxying: ${contentType} (${proxyHeaders['Cache-Control']})`)
 				}
 
 				const body = Buffer.from(await originResponse.arrayBuffer())
@@ -730,9 +729,14 @@ export async function handleRequest(req: Request, res: Response): Promise<void> 
 				executeDeferredWrites(deferredWrites)
 			})
 
-			// Send response with origin headers (Cache-Control, ETag, etc.) and security headers
+			// Send response with cache control and security headers
 			const htmlHeaders = prepareResponseHeaders(fetchResult.headers)
 			htmlHeaders['Content-Type'] = 'text/html; charset=utf-8'
+			htmlHeaders['Cache-Control'] = getCacheControl({
+				originHeaders: fetchResult.headers,
+				cacheDisabledUntil: translationConfig.cacheDisabledUntil,
+				applyMinimumCache: false,
+			})
 			res.status(fetchResult.statusCode).set(htmlHeaders).send(html)
 		} catch (fetchError) {
 			console.error('Fetch/parse error:', fetchError)

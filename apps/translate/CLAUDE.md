@@ -66,6 +66,33 @@ Placeholders preserve content that shouldn't be translated or needs special hand
 -   Prompts defined in `translation/prompts.ts` (SEGMENT_PROMPT for text, PATHNAME_PROMPT for URLs)
 -   Skip patterns in `translation/skip-patterns.ts` (PII, numeric, code detection)
 
+## Cache Control
+
+Proxied responses use origin's `Cache-Control` header with smart defaults. Logic in `utils/cache-control.ts`.
+
+| Content Type | Cache Behavior |
+| ------------ | -------------- |
+| Static assets (images, CSS, JS, fonts) | 5-min minimum, or pass through origin if higher |
+| Data files (`.json`, `.xml`) | Respect origin, or `no-cache` if none |
+| Data responses (`application/json`, `application/xml`) | Respect origin, or `no-cache` if none |
+| HTML | Respect origin, or `no-cache` if none |
+
+**Directive Preservation**:
+- When origin max-age >= 5 min: pass through entire header (preserves `immutable`, `stale-while-revalidate`, `private`, etc.)
+- When enforcing 5-min minimum: preserves `private` and `no-transform` directives from origin
+
+**Dev Override**: Set `website.cache_disabled_until` to a future timestamp to force `no-cache` on all responses for that website. Useful for testing changes without cached content.
+
+```sql
+-- Enable dev mode for 1 hour
+UPDATE website SET cache_disabled_until = NOW() + INTERVAL '1 hour' WHERE id = 123;
+
+-- Disable dev mode
+UPDATE website SET cache_disabled_until = NULL WHERE id = 123;
+```
+
+Note: Translation config has 60-second in-memory cache, so changes take up to 60 seconds to take effect.
+
 ## Environment Variables
 
 | Variable              | Default | Description                                    |

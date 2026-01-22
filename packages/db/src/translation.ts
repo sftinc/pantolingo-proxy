@@ -18,7 +18,7 @@ export interface TranslationConfig {
 	skipWords: string[]
 	skipPath: (string | RegExp)[]
 	translatePath: boolean
-	proxiedCache: number
+	cacheDisabledUntil: Date | null // website.cache_disabled_until - dev override for caching
 }
 
 // In-memory cache for hot path (translation config rarely changes)
@@ -69,7 +69,7 @@ export async function getTranslationConfig(hostname: string): Promise<Translatio
 			skip_words: string[] | null
 			skip_path: string[] | null
 			translate_path: boolean | null
-			proxied_cache: number
+			cache_disabled_until: Date | null
 			website_hostname: string
 			source_lang: string
 		}>(
@@ -80,7 +80,7 @@ export async function getTranslationConfig(hostname: string): Promise<Translatio
 				w.skip_words,
 				w.skip_path,
 				w.translate_path,
-				t.proxied_cache,
+				w.cache_disabled_until,
 				w.hostname AS website_hostname,
 				w.source_lang
 			FROM translation t
@@ -105,7 +105,7 @@ export async function getTranslationConfig(hostname: string): Promise<Translatio
 			skipWords: row.skip_words || [],
 			skipPath: parseSkipPath(row.skip_path),
 			translatePath: row.translate_path ?? true,
-			proxiedCache: row.proxied_cache,
+			cacheDisabledUntil: row.cache_disabled_until,
 		}
 
 		// Cache the result
