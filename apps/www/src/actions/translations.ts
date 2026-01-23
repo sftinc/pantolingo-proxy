@@ -1,6 +1,6 @@
 'use server'
 
-import { auth } from '@/lib/auth'
+import { requireAccountId } from '@/lib/auth'
 import {
 	canAccessWebsite,
 	updateSegmentTranslation,
@@ -8,14 +8,6 @@ import {
 	markSegmentReviewed,
 	markPathReviewed,
 } from '@pantolingo/db'
-
-async function requireAccountId(): Promise<number> {
-	const session = await auth()
-	if (!session?.user?.accountId) {
-		throw new Error('Unauthorized')
-	}
-	return session.user.accountId
-}
 
 export async function saveSegmentTranslation(
 	websiteId: number,

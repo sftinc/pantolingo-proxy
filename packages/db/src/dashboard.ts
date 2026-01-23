@@ -56,6 +56,12 @@ export interface Website {
 	sourceLang: string
 }
 
+export interface WebsiteWithSettings extends Website {
+	skipWords: string[]
+	skipPath: string[]
+	translatePath: boolean
+}
+
 export interface PathOption {
 	id: number
 	path: string
@@ -127,13 +133,16 @@ export async function getWebsitesWithStats(accountId: number): Promise<WebsiteWi
  * Note: Authorization should be checked separately with canAccessWebsite()
  * @param websiteId - Website ID
  */
-export async function getWebsiteById(websiteId: number): Promise<Website | null> {
+export async function getWebsiteById(websiteId: number): Promise<WebsiteWithSettings | null> {
 	const result = await pool.query<{
 		id: number
 		hostname: string
 		source_lang: string
+		skip_words: string[] | null
+		skip_path: string[] | null
+		translate_path: boolean | null
 	}>(
-		`SELECT id, hostname, source_lang FROM website WHERE id = $1`,
+		`SELECT id, hostname, source_lang, skip_words, skip_path, translate_path FROM website WHERE id = $1`,
 		[websiteId]
 	)
 
@@ -144,6 +153,9 @@ export async function getWebsiteById(websiteId: number): Promise<Website | null>
 		id: row.id,
 		hostname: row.hostname,
 		sourceLang: row.source_lang,
+		skipWords: row.skip_words || [],
+		skipPath: row.skip_path || [],
+		translatePath: row.translate_path ?? true,
 	}
 }
 
@@ -538,5 +550,37 @@ export async function markPathReviewed(
 	} catch (error) {
 		console.error('Failed to mark path as reviewed:', error)
 		return { success: false, error: 'Failed to mark as reviewed' }
+	}
+}
+
+/**
+ * Update website settings
+ * Note: Authorization should be checked separately with canAccessWebsite()
+ * @param websiteId - Website ID
+ * @param settings - Settings to update (skipWords, skipPath, translatePath)
+ * @returns Success status
+ */
+export async function updateWebsiteSettings(
+	websiteId: number,
+	settings: {
+		skipWords: string[]
+		skipPath: string[]
+		translatePath: boolean
+	}
+): Promise<{ success: boolean; error?: string }> {
+	try {
+		await pool.query(
+			`UPDATE website
+			 SET skip_words = $2,
+			     skip_path = $3,
+			     translate_path = $4,
+			     updated_at = NOW()
+			 WHERE id = $1`,
+			[websiteId, settings.skipWords, settings.skipPath, settings.translatePath]
+		)
+		return { success: true }
+	} catch (error) {
+		console.error('Failed to update website settings:', error)
+		return { success: false, error: 'Failed to update settings' }
 	}
 }

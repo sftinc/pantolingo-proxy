@@ -36,11 +36,13 @@ export {
 	updatePathTranslation,
 	markSegmentReviewed,
 	markPathReviewed,
+	updateWebsiteSettings,
 	type WebsiteWithStats,
 	type LangWithStats,
 	type SegmentWithTranslation,
 	type PathWithTranslation,
 	type PaginatedResult,
 	type Website,
+	type WebsiteWithSettings,
 	type PathOption,
 } from './dashboard.js'

@@ -93,3 +93,15 @@ export const handlers: { GET: typeof nextAuth.handlers.GET; POST: typeof nextAut
 export const auth: typeof nextAuth.auth = nextAuth.auth as any
 export const signIn: typeof nextAuth.signIn = nextAuth.signIn
 export const signOut: typeof nextAuth.signOut = nextAuth.signOut
+
+/**
+ * Require authentication and return the account ID
+ * @throws Error if not authenticated
+ */
+export async function requireAccountId(): Promise<number> {
+	const session = await auth()
+	if (!session?.user?.accountId) {
+		throw new Error('Unauthorized')
+	}
+	return session.user.accountId
+}
