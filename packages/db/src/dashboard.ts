@@ -475,9 +475,14 @@ export async function updateSegmentTranslation(
 		)
 
 		const row = selectResult.rows[0]
-		const translationSegmentId = row?.id
-		const previousText = row?.translated_text ?? ''
-		const wasReviewed = row?.reviewed_at !== null
+		if (!row) {
+			await client.query('ROLLBACK')
+			return { success: false, error: 'Segment not found' }
+		}
+
+		const translationSegmentId = row.id
+		const previousText = row.translated_text ?? ''
+		const wasReviewed = row.reviewed_at !== null
 
 		const textChanged = previousText !== translatedText
 		const reviewedChanged = reviewed !== null && reviewed !== undefined && reviewed !== wasReviewed
@@ -507,7 +512,7 @@ export async function updateSegmentTranslation(
 				changes.text = { old: previousText, new: translatedText }
 			}
 			if (reviewedChanged) {
-				changes.reviewed = { old: wasReviewed, new: reviewed }
+				changes.reviewed = { old: wasReviewed, new: reviewed as boolean }
 			}
 			const details: SegmentEditDetails = {
 				translation_segment_id: translationSegmentId,
@@ -571,9 +576,14 @@ export async function updatePathTranslation(
 		)
 
 		const row = selectResult.rows[0]
-		const translationPathId = row?.id
-		const previousPath = row?.translated_path ?? ''
-		const wasReviewed = row?.reviewed_at !== null
+		if (!row) {
+			await client.query('ROLLBACK')
+			return { success: false, error: 'Path not found' }
+		}
+
+		const translationPathId = row.id
+		const previousPath = row.translated_path ?? ''
+		const wasReviewed = row.reviewed_at !== null
 
 		const textChanged = previousPath !== translatedPath
 		const reviewedChanged = reviewed !== null && reviewed !== undefined && reviewed !== wasReviewed
@@ -603,7 +613,7 @@ export async function updatePathTranslation(
 				changes.text = { old: previousPath, new: translatedPath }
 			}
 			if (reviewedChanged) {
-				changes.reviewed = { old: wasReviewed, new: reviewed }
+				changes.reviewed = { old: wasReviewed, new: reviewed as boolean }
 			}
 			const details: PathEditDetails = {
 				translation_path_id: translationPathId,
