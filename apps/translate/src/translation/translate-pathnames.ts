@@ -8,7 +8,7 @@
 import type { TokenUsage } from '@pantolingo/db'
 import type { PatternReplacement, Content, PathnameMapping } from '../types.js'
 import { applyPatterns, restorePatterns } from './skip-patterns.js'
-import { toAsciiPathname } from './ascii-pathname.js'
+import { toAsciiPathname } from '../utils/ascii-pathname.js'
 
 /** Result from translateFn with usage tracking */
 export interface TranslateFnResult {
