@@ -321,23 +321,25 @@ export const PlaceholderEditor = forwardRef<PlaceholderEditorRef, PlaceholderEdi
 
 			const cursorOffset = getCursorOffset(editorRef.current)
 			const newValue = serializeDOMToValue(editorRef.current)
+			const valueChanged = newValue !== lastValueRef.current
 
-			if (newValue !== lastValueRef.current) {
-				lastValueRef.current = newValue
-				isInternalUpdate.current = true
+			lastValueRef.current = newValue
+			isInternalUpdate.current = true
+
+			if (valueChanged) {
 				onChange(newValue)
+			}
 
-				// Re-render with new value to fix any visual issues
-				renderValue(newValue)
+			// Always re-render to fix DOM inconsistencies (e.g., deleted cursor anchors)
+			renderValue(newValue)
 
-				// Restore cursor
-				if (cursorOffset >= 0) {
-					requestAnimationFrame(() => {
-						if (editorRef.current) {
-							setCursorOffset(editorRef.current, cursorOffset)
-						}
-					})
-				}
+			// Restore cursor
+			if (cursorOffset >= 0) {
+				requestAnimationFrame(() => {
+					if (editorRef.current) {
+						setCursorOffset(editorRef.current, cursorOffset)
+					}
+				})
 			}
 		}, [onChange, renderValue])
 
